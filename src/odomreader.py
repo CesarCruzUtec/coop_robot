@@ -2,10 +2,8 @@
 
 import os
 
-import numpy as np
 import rospy
 import tf.transformations
-from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 import datetime
 

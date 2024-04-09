@@ -192,8 +192,8 @@ class ControlPosition:
 
 if __name__ == "__main__":
     rospy.init_node("controlpos", disable_signals=True)
-    kp = [2, 2, 2]
-    kd = [0.3, 0.3, 0.25]
-    ki = [0.5, 0.5, 0.5]
-    cp = ControlPosition(0.0, 0.0, 0.0, kp, ki, kd)
+    kp = [1, 1, 1]
+    kd = [0.1, 0.1, 0.1]
+    ki = [0.1, 0.1, 0.1]
+    cp = ControlPosition(1.0, 2.0, 30.0, kp, ki, kd)
     cp.run()
