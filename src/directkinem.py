@@ -30,5 +30,5 @@ class DirectKinematics:
 
 if __name__ == "__main__":
     rospy.init_node("directkinem", disable_signals=True)
-    dk = DirectKinematics(vel_lin=0.26, vel_ang=1.82)
+    dk = DirectKinematics(vel_lin=0.26, vel_ang=0.3)
     dk.run()

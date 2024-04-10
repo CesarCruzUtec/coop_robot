@@ -51,9 +51,9 @@ class ControlTrajectory:
         euler = tf.transformations.euler_from_quaternion(
             [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
         )
-        if (euler[2] - self.thetaP) > 1.9*np.pi:
+        if (euler[2] - self.thetaP) > 1.9 * np.pi:
             self.k = self.k + 1
-        elif (euler[2] - self.thetaP) < -1.9*np.pi:
+        elif (euler[2] - self.thetaP) < -1.9 * np.pi:
             self.k = self.k - 1
         self.theta = euler[2]
         # self.theta = 2 * np.pi * self.k + self.thetaP
@@ -62,7 +62,6 @@ class ControlTrajectory:
         )
         self.vel_lin = data.twist.twist.linear.x
         self.vel_ang = data.twist.twist.angular.z
-        
 
     def plot_init(self):
         self.fig = plt.figure(figsize=(12, 6))
@@ -129,8 +128,9 @@ class ControlTrajectory:
 
     def newDesiredPosition(self):
         if self.iterator != len(self.x_True):
-            posd = np.array([self.x_True[self.iterator], 
-                             self.y_True[self.iterator], 0.0])
+            posd = np.array(
+                [self.x_True[self.iterator], self.y_True[self.iterator], 0.0]
+            )
             err = posd - np.array([self.x, self.y, 0.0])
             theta_dp = np.arctan2(err[1], err[0])
             if np.linalg.norm(err[0:2]) > 0.02 and self.step[0]:
@@ -174,7 +174,7 @@ class ControlTrajectory:
             derr = (err - err_p) * self.rate
             ierr = self.ierr_p + err / self.rate
             self.ierr_p = ierr
-            
+
         self.xe.append(err[0])
         self.ye.append(err[1])
         self.thetae.append(err[2])
@@ -184,7 +184,7 @@ class ControlTrajectory:
         self.xed.append(derr[0])
         self.yed.append(derr[1])
         self.thetaed.append(derr[2])
-        
+
         dpos = np.dot(self.kp, err) + np.dot(self.kd, derr) + np.dot(self.ki, ierr)
         print(dpos)
         ik = np.dot(np.linalg.pinv(self.S), dpos)
@@ -211,21 +211,31 @@ class ControlTrajectory:
                 self.newDesiredPosition()
                 self.control()
                 self.update_plot()
-                # self.printStatus()
+                self.printStatus()
 
                 print("\n")
                 rate.sleep()
             self.vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
             pub.publish(self.vel)
-            np.savetxt("controlTraReal.txt",np.column_stack(
-                (self.time,self.xp, self.yp, self.thetap,
-                # self.xd, self.yd, self.thetad,
-                # self.xe, self.ye, self.thetae,
-                # self.xei, self.yei, self.thetaei,
-                # self.xed, self.yed, self.thetaed,
-                self.linear_vel, self.angular_vel,
-                self.lin_real, self.ang_real)
-            ))
+            np.savetxt(
+                "controlTraReal.txt",
+                np.column_stack(
+                    (
+                        self.time,
+                        self.xp,
+                        self.yp,
+                        self.thetap,
+                        # self.xd, self.yd, self.thetad,
+                        # self.xe, self.ye, self.thetae,
+                        # self.xei, self.yei, self.thetaei,
+                        # self.xed, self.yed, self.thetaed,
+                        self.linear_vel,
+                        self.angular_vel,
+                        self.lin_real,
+                        self.ang_real,
+                    )
+                ),
+            )
         except KeyboardInterrupt:
             self.vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
             pub.publish(self.vel)
