@@ -1,7 +1,8 @@
 <launch>
     <arg name="model" default="$(env TURTLEBOT3_MODEL)" />
-    <arg name="gui" default="false" />
+    <arg name="gui" default="true" />
 
+    <!-- Include the world to use-->
     <include
         file="$(find aws_robomaker_small_warehouse_world)/launch/no_roof_small_warehouse.launch">
         <arg name="gui" value="$(arg gui)" />
@@ -12,8 +13,8 @@
         <arg name="model" value="$(arg model)"/>
     </include>
 
-    <!--include 
-        file="$(find turtlebot3_gazebo)/launch/turtlebot3_gazebo_rviz.launch">
+    <include 
+        file="$(find coop_robot)/launch/multiple_robot_rviz.launch">
         <arg name="model" value="$(arg model)" />
-    </include-->
+    </include>
 </launch>
