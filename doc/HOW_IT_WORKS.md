@@ -23,7 +23,7 @@ Automated exploration from the `multi_robot_exploration` package is a process th
 - Run the node `rviz` to visualize the map.
 - Run the launch file [`modified_move_base.launch`](#modified_move_baselaunch) to start the navigation process for the two turtlebots.
     - `ns`: The namespace of each turtlebot.
-- Run the node [`tb3_0_FE`](#tb3_0_fe) and [`tb3_1_FE`](#tb3_1_fe) to start the frontier exploration process for the two turtlebots.
+- Run the node [`tb3_0_FE`](#tb3__fe) and [`tb3_1_FE`](#tb3__fe) to start the frontier exploration process for the two turtlebots.
 - Run some `static_transform_publisher` nodes to publish the transformation between the two turtlebots and the map frame.
     - From `/tb3_ns/base_footprint` to `/tb3_ns/tb3_ns/base_footprint`.
     - From `/tb3_ns/tb3_ns/base_scan` to `/tb3_ns/base_scan`.
@@ -37,10 +37,10 @@ Automated exploration from the `multi_robot_exploration` package is a process th
 - Run the launch file `empty_world.launch` to start the Gazebo simulation.
     - `world_name`: The name of the world file.
     - `paused`, `use_sim_time`, `gui`, `headless`, `debug`: The Gazebo simulation parameters.
-- Run the launch file [`tb3_0.launch`](#tb3_*launch) to spawn the first turtlebot.
+- Run the launch file [`tb3_0.launch`](#tb3_launch) to spawn the first turtlebot.
     - `init_pose`: The initial position of the first turtlebot.
     - `robot_name`: The name of the first turtlebot.
-- Run the launch file [`tb3_1.launch`](#tb3_*launch) to spawn the second turtlebot.
+- Run the launch file [`tb3_1.launch`](#tb3_launch) to spawn the second turtlebot.
     - `init_pose`: The initial position of the second turtlebot.
     - `robot_name`: The name of the second turtlebot.
 
@@ -211,7 +211,7 @@ main:
         ros::spinOnce
 ```
 
-### tb3_0_FE
+### tb3_*_FE
 
 The `tb3_0_FE` is a node from the `multi_robot_exploration` package that is used to explore the environment and find the frontiers for the first turtlebot.
 
@@ -374,9 +374,6 @@ Class **FrontExpl**
 1. Initialize ROS node with name "tb3_0_FE"
 2. Define a FrontExpl object *FE*
 3. Run the **main_loop** function of the *FE* object
-
-
-### tb3_1_FE
 
 ### map_merge
 
