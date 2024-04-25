@@ -7,106 +7,314 @@ Automated exploration from the `multi_robot_exploration` package is a process th
 ### two_tb_exploration.launch
 
 - Initialize the following parameters:
-    - `model`: The model of the robots, in this case they are turtlebots `waffle_pi`.
-    - `first_tb3`and `second_tb3`: The name of the two turtlebots.
-    - `known_initial_pos`: If the initial position of the robots is known.
-    - `first_tb3_x_pos`, `first_tb3_y_pos`: The initial position of the first turtlebot.
-    - `second_tb3_x_pos`, `second_tb3_y_pos`: The initial position of the second turtlebot.
-- Run the node [`map_node`](#map_node).
-- Run the launch file [`spawn_robots.launch`](#spawn_robotslaunch) to spawn the two turtlebots.
-    - `first_tb3_x_pos`, `first_tb3_y_pos`: The initial position of the first turtlebot.
-    - `second_tb3_x_pos`, `second_tb3_y_pos`: The initial position of the second turtlebot.
-- Run the launch file [`slam_online_synch.launch`](#slam_online_synchlaunch) to start the SLAM process for the two turtlebots.
-    - `ns`: The namespace of each turtlebot.
-- Run the launch file [`multi_robot_map_merge.launch`](#multi_robot_map_mergelaunch) to merge the maps of the two turtlebots.
-    - `known_initial_pos`: If the initial position of the robots is known.
-- Run the node `rviz` to visualize the map.
-- Run the launch file [`modified_move_base.launch`](#modified_move_baselaunch) to start the navigation process for the two turtlebots.
-    - `ns`: The namespace of each turtlebot.
-- Run the node [`tb3_0_FE`](#tb3__fe) and [`tb3_1_FE`](#tb3__fe) to start the frontier exploration process for the two turtlebots.
-- Run some `static_transform_publisher` nodes to publish the transformation between the two turtlebots and the map frame.
-    - From `/tb3_ns/base_footprint` to `/tb3_ns/tb3_ns/base_footprint`.
-    - From `/tb3_ns/tb3_ns/base_scan` to `/tb3_ns/base_scan`.
+    ```xml
+    <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
+    <arg name="first_tb3"  default="tb3_0"/>
+    <arg name="second_tb3" default="tb3_1"/>
+    <arg name="known_initial_pos" default="true"/>
+
+    <arg name="first_tb3_x_pos" default="-7.0"/>
+    <arg name="first_tb3_y_pos" default=" -1.0"/>
+
+    <arg name="second_tb3_x_pos" default=" 7.0"/>
+    <arg name="second_tb3_y_pos" default=" -1.0"/>
+    ```
+- Run the node [**map_node**](#map_node).
+    ```xml
+    <node pkg="multi_robot_exploration" type="map_node" name="multi_robot_exploration_map_node"/>
+    ```
+- Run the launch file [**spawn_robots.launch**](#spawn_robotslaunch) to spawn the two turtlebots in Gazebo.
+    ```xml
+    <include file="$(find multi_robot_exploration)/launch/spawn_robots.launch">
+        <arg name="first_tb3_x_pos" value="$(arg first_tb3_x_pos)"/>
+        <arg name="first_tb3_y_pos" value="$(arg first_tb3_y_pos)"/>
+
+        <arg name="second_tb3_x_pos" value="$(arg second_tb3_x_pos)"/>
+        <arg name="second_tb3_y_pos" value="$(arg second_tb3_y_pos)"/>
+    </include>
+    ```
+- Run the launch file [**slam_online_synch.launch**](#slam_online_synchlaunch) to start the SLAM process for the two turtlebots.
+    ```xml
+    <include file = "$(find multi_robot_exploration)/launch/slam_online_synch.launch">
+        <arg name="ns" value="$(arg first_tb3)"/>
+    </include>
+    
+    <include file = "$(find multi_robot_exploration)/launch/slam_online_synch.launch">
+        <arg name="ns" value="$(arg second_tb3)"/>
+    </include>
+    ```
+- Run the launch file [**multi_robot_map_merge.launch**](#multi_robot_map_mergelaunch) to merge the maps of the two turtlebots.
+    ```xml
+    <include file="$(find multi_robot_exploration)/launch/multi_robot_map_merge.launch">
+        <arg name="known_initial_pos" value="$(arg known_initial_pos)"/>
+    </include>
+    ```
+- Run the node [**rviz**](https://github.com/ros-visualization/rviz.git) to visualize the map.
+    ```xml
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find multi_robot_exploration)/config/two_tb.rviz"/>
+    ```
+- Run the launch file [**modified_move_base.launch**](#modified_move_baselaunch) to start the navigation process for the two turtlebots.
+    ```xml
+    <group ns="$(arg first_tb3)">
+        <include file="$(find multi_robot_exploration)/launch/modified_move_base.launch">
+            <arg name="ns" value="$(arg first_tb3)" />
+        </include>
+    </group>
+
+    <group ns="$(arg second_tb3)">
+        <include file="$(find multi_robot_exploration)/launch/modified_move_base.launch">
+            <arg name="ns" value="$(arg second_tb3)" />
+        </include>
+    </group>
+    ```
+- Run the node [**tb3_0_FE**](#tb3__fe) and [**tb3_1_FE**](#tb3__fe) to start the frontier exploration process for the two turtlebots.
+    ```xml
+    <node pkg="multi_robot_exploration" type="tb3_0_FE" name="tb3_0_FE" />
+    <node pkg="multi_robot_exploration" type="tb3_1_FE" name="tb3_1_FE" />
+    ```
+- Run some [**static_transform_publisher**]() nodes to publish the transformation between the two turtlebots and the map frame.
+    ```xml
+    <node pkg="tf2_ros" type="static_transform_publisher"
+        name="double_$(arg first_tb3)_tf_broadcaster_base_footprint"
+        args="0 0 0 0 0 0 /$(arg first_tb3)/base_footprint /$(arg first_tb3)/$(arg first_tb3)/base_footprint " />
+    <node pkg="tf2_ros" type="static_transform_publisher"
+        name="double_$(arg first_tb3)_tf_broadcaster_scan"
+        args="0 0 0 0 0 0 /$(arg first_tb3)/$(arg first_tb3)/base_scan /$(arg first_tb3)/base_scan " />
+
+    <node pkg="tf2_ros" type="static_transform_publisher"
+        name="double_$(arg second_tb3)_tf_broadcaster_base_footprint"
+        args="0 0 0 0 0 0 /$(arg second_tb3)/base_footprint /$(arg second_tb3)/$(arg second_tb3)/base_footprint " />
+    <node pkg="tf2_ros" type="static_transform_publisher"
+        name="double_$(arg second_tb3)_tf_broadcaster_scan"
+        args="0 0 0 0 0 0 /$(arg second_tb3)/$(arg second_tb3)/base_scan /$(arg second_tb3)/base_scan " />
+    ```
 
 ### spawn_robots.launch
 
 - Initialize the following parameters:
-    - `first_tb3_x_pos`, `first_tb3_y_pos`: The initial position of the first turtlebot.
-    - `second_tb3_x_pos`, `second_tb3_y_pos`: The initial position of the second turtlebot.
-    - `init_pose_0`, `init_pose_1`: The combined initial position for the two turtlebots.
-- Run the launch file `empty_world.launch` to start the Gazebo simulation.
-    - `world_name`: The name of the world file.
-    - `paused`, `use_sim_time`, `gui`, `headless`, `debug`: The Gazebo simulation parameters.
-- Run the launch file [`tb3_0.launch`](#tb3_launch) to spawn the first turtlebot.
-    - `init_pose`: The initial position of the first turtlebot.
-    - `robot_name`: The name of the first turtlebot.
-- Run the launch file [`tb3_1.launch`](#tb3_launch) to spawn the second turtlebot.
-    - `init_pose`: The initial position of the second turtlebot.
-    - `robot_name`: The name of the second turtlebot.
+    ```xml
+    <arg name="first_tb3_x_pos" default="-7.0" />
+    <arg name="first_tb3_y_pos" default=" -1.0" />
+
+    <arg name="second_tb3_x_pos" default=" 7.0" />
+    <arg name="second_tb3_y_pos" default=" -1.0" />
+
+    <arg name="init_pose_0" default="-x $(arg first_tb3_x_pos) -y $(arg first_tb3_y_pos) -z 0.0" />
+    <arg name="init_pose_1" default="-x $(arg second_tb3_x_pos) -y $(arg second_tb3_y_pos) -z 0.0" />
+    ```
+- Run the launch file [**empty_world.launch**](https://wiki.ros.org/gazebo) to start the Gazebo simulation.
+    ```xml
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(find multi_robot_exploration)/worlds/bookstore.world" />
+        <arg name="paused" value="false" />
+        <arg name="use_sim_time" value="true" />
+        <arg name="gui" value="true" />
+        <arg name="headless" value="false" />
+        <arg name="debug" value="false" />
+    </include>
+    ```
+- Run the launch file [**tb3_0.launch**](#tb3_launch) to spawn the first turtlebot.
+    ```xml
+    <group ns="tb3_0">
+        <param name="tf_prefix" value="tb3_0" />
+        <include file="$(find multi_robot_exploration)/launch/tb3_0.launch">
+            <arg name="init_pose" value="$(arg init_pose_0)" />
+            <arg name="robot_name" value="tb3_0" />
+        </include>
+    </group>
+    ```
+- Run the launch file [**tb3_1.launch**](#tb3_launch) to spawn the second turtlebot.
+    ```xml
+    <group ns="tb3_1">
+        <param name="tf_prefix" value="tb3_1" />
+        <include file="$(find multi_robot_exploration)/launch/tb3_1.launch">
+            <arg name="init_pose" value="$(arg init_pose_1)" />
+            <arg name="robot_name" value="tb3_1" />
+        </include>
+    </group>
+    ```
 
 ### slam_online_synch.launch
 
 - Initialize the following parameters:
-    - `ns`: The namespace of each turtlebot.
-- Run the node [`sync_slam_toolbox_node`](#sync_slam_toolbox_node) to synchronize the SLAM process for the two turtlebots.
-    - `base_frame`: The base frame of the turtlebot.
-    - `odom_frame`: The odometry frame of the turtlebot.
-    - `map_frame`: The map frame of the turtlebot.
-- Remap some topics to synchronize the SLAM process for the two turtlebots.
-    - From `/map` to `/ns/map`.
-    - From `/scan` to `/ns/scan`.
-    - From `/initialpose` to `/initialpose_ns`.
+    ```xml
+    <arg name="ns" default="tb3_0"/>
+    ```
+- Run the node [**sync_slam_toolbox_node**](#sync_slam_toolbox_node) to synchronize the SLAM process for the two turtlebots and remap some topics.
+    ```xml
+    <node pkg="slam_toolbox" type="sync_slam_toolbox_node" name="slam_toolbox_$(arg ns)" output="screen">
+        <rosparam command="load" file="$(find multi_robot_exploration)/config/mapper_params_online_sync.yaml" />
+        <param name="base_frame" value="$(arg ns)/base_footprint"/>
+        <param name="odom_frame" value="$(arg ns)/odom"/>
+        <param name="map_frame"  value="$(arg ns)/map"/>
+        <remap from="/map" to="$(arg ns)/map"/>
+        <remap from="/scan" to="$(arg ns)/scan"/>
+        <remap from="/initialpose" to = "/initialpose_$(arg ns)"/>
+    </node>
+    ```
 
 ### multi_robot_map_merge.launch
 
 - Initialize the following parameters:
-    - `known_initial_pos`: If the initial position of the robots is known.
-    - `first_tb3`, `second_tb3`: The name of the two turtlebots.
-    - `first_tb3_x_pos`, `first_tb3_y_pos`, `first_tb3_z_pos`, `first_tb3_yaw`: The initial position of the first turtlebot.
-    - `second_tb3_x_pos`, `second_tb3_y_pos`, `second_tb3_z_pos`, `second_tb3_yaw`: The initial position of the second turtlebot.
-- Create two groups with the namespace `first_tb3/map_merge` and `second_tb3/map_merge` with the following parameters.
-    - `init_pose_x`, `init_pose_y`, `init_pose_z`, `init_pose_yaw`: The initial position of the turtlebot.
-- Run the node [`map_merge`](#map_merge) to merge the maps of the two turtlebots.
-    - `robot_main_topic`: The main topic of the turtlebot.
-    - `robot_namespace`: The namespace of the turtlebot.
-    - `merged_map_topic`: The topic to publish the merged map.
-    - `world_frame`: The world frame.
-    - `known_init_poses`: If the initial position of the robots is known.
-    - `merging_rate`: The rate to merge the maps.
-    - `discovery_rate`: The rate to discover the maps.
-    - `estimation_rate`: The rate to estimate the maps.
-    - `estimation_confidence`: The confidence to estimate the maps.
-- Remap some topics to merge the maps of the two turtlebots.
-    - From `first_tb3/map` to `new_tb3_0_map`.
-    - From `second_tb3/map` to `new_tb3_1_map`.
-- Run some `static_transform_publisher` nodes to publish the transformation between the two turtlebots and the map frame.
-    - From `/map` to `/first_tb3/map`.
-    - From `/map` to `/second_tb3/map`.
-    - From `/map` to `/new_tb3_0_map`.
-    - From `/map` to `/new_tb3_1_map`.
+    ```xml
+    <arg name="known_initial_pos" default="true"/>
+
+    <arg name="first_tb3"  default="tb3_0"/>
+    <arg name="second_tb3" default="tb3_1"/>
+
+    <arg name="first_tb3_x_pos" default="-7.0"/>
+    <arg name="first_tb3_y_pos" default=" -1.0"/>
+    <arg name="first_tb3_z_pos" default=" 0.0"/>
+    <arg name="first_tb3_yaw"   default=" 0.0"/>
+
+    <arg name="second_tb3_x_pos" default=" 7.0"/>
+    <arg name="second_tb3_y_pos" default=" -1.0"/>
+    <arg name="second_tb3_z_pos" default=" 0.0"/>
+    <arg name="second_tb3_yaw"   default=" 0.0"/>
+    ```
+- Create two groups with the following parameters.
+    ```xml
+    <group ns="$(arg first_tb3)/map_merge">
+        <param name="init_pose_x"   value="$(arg first_tb3_x_pos)"/>
+        <param name="init_pose_y"   value="$(arg first_tb3_y_pos)"/>
+        <param name="init_pose_z"   value="$(arg first_tb3_z_pos)"/>
+        <param name="init_pose_yaw" value="$(arg first_tb3_yaw)"  />
+    </group>
+
+    <group ns="$(arg second_tb3)/map_merge">
+        <param name="init_pose_x"   value="$(arg second_tb3_x_pos)"/>
+        <param name="init_pose_y"   value="$(arg second_tb3_y_pos)"/>
+        <param name="init_pose_z"   value="$(arg second_tb3_z_pos)"/>
+        <param name="init_pose_yaw" value="$(arg second_tb3_yaw)"  />
+    </group>
+    ```
+- Run the node [**map_merge**](#map_merge) to merge the maps of the two turtlebots and do some remapping.
+    ```xml
+    <node pkg="multirobot_map_merge" type="map_merge" respawn="false" name="map_merge">
+        <param name="robot_map_topic" value="map"/>
+        <param name="robot_namespace" value="tb3"/>
+        <param name="merged_map_topic" value="map"/>
+        <param name="world_frame" value="map"/>
+        <param name="known_init_poses" value="$(arg known_initial_pos)"/>
+        <param name="merging_rate" value="0.5"/>
+        <param name="discovery_rate" value="0.05"/>
+        <param name="estimation_rate" value="0.1"/>
+        <param name="estimation_confidence" value="1.0"/>
+
+        <remap from = "$(arg first_tb3)/map" to = "new_tb3_0_map"/>
+        <remap from = "$(arg second_tb3)/map" to = "new_tb3_1_map"/>
+    </node>
+    ```
+- Run some [**static_transform_publisher**](https://github.com/ros/geometry.git) nodes to publish the transformation between the two turtlebots and the map frame.
+    ```xml
+    <node pkg="tf" type="static_transform_publisher" 
+        name="world_to_$(arg first_tb3)_tf_broadcaster"  
+        args="0 0 0 0 0 0 /map /$(arg first_tb3)/map 100"/>
+    <node pkg="tf" type="static_transform_publisher" 
+        name="world_to_$(arg second_tb3)_tf_broadcaster" 
+        args="0 0 0 0 0 0 /map /$(arg second_tb3)/map 100"/>
+    <node pkg="tf" type="static_transform_publisher" 
+        name="world_to_new_$(arg first_tb3)_map" 
+        args="0 0 0 0 0 0 /map /new_tb3_0_map 100"/>
+    <node pkg="tf" type="static_transform_publisher" 
+        name="world_to__new_$(arg second_tb3)_map" 
+        args="0 0 0 0 0 0 /map /new_tb3_1_map 100"/>
+    ```
 
 ### modified_move_base.launch
 
 - Initialize the following parameters:
-    - `ns`: The namespace of each turtlebot.
-    - `robot_base_frame`: The base frame of the turtlebot.
-    - `move_forward_only`: If the turtlebot can only move forward.
-- Run the node `move_base` to start the navigation process for the two turtlebots.
-    - `base_local_planner`: The local planner for the turtlebot.
-    - Initialize `yaml` parameters for the local planner.
-- Remap some topics to start the navigation process for the two turtlebots.
-    - From `robot_base_frame` to `/ns/base_footprint`.
-    - From `/map` to `/ns/map`.
+    ```xml
+    <arg name="ns" default="tb3_0"/>
+    <arg name = "robot_base_frame" default = "$(arg ns)/base_footprint"/>
+    <arg name="move_forward_only" default="false"/>
+    ```
+- Run the node [**move_base**](https://github.com/ros-planning/navigation.git) to start the navigation process for the two turtlebots and do some remapping
+    ```xml
+    <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+        <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+        <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_burger.yaml" 
+            command="load" ns="global_costmap"/>
+        <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_burger.yaml" 
+            command="load" ns="local_costmap" />
+        <rosparam file="$(find multi_robot_exploration)/config/local_costmap_params_$(arg ns).yaml"  
+            command="load" />
+        <rosparam file="$(find multi_robot_exploration)/config/global_costmap_params_$(arg ns).yaml" 
+            command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/base_local_planner_params.yaml" 
+            command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/move_base_params.yaml" 
+            command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/dwa_local_planner_params_burger.yaml" 
+            command="load" />
+
+        <remap from="robot_base_frame" to="$(arg ns)/base_footprint"/>
+        <remap from="/map" to="$(arg ns)/map"/>
+    </node>
+    ```
 
 ### tb3_*.launch
 
 - Initialize the following parameters:
-    - `init_pose`: The initial position of the first turtlebot.
-    - `robot_name`: The name of the first turtlebot.
-- Define the `robot_description` parameter for the first turtlebot.
-- Run the node `robot_state_publisher` to publish the state of the first turtlebot.
-    - `publish_frequency`: The frequency to publish the state of the turtlebot.
-- Run the node `spawn_model` to spawn the first turtlebot.
+    ```xml
+    <arg name="robot_name"/>
+    <arg name="init_pose"/>
+    <param name="robot_description" 
+        command="$(find xacro)/xacro --inorder $(find multi_robot_exploration)/urdf/tb3_0.urdf.xacro" />
+    ```
+- Run the node [**robot_state_publisher**](https://github.com/ros/robot_state_publisher.git) to publish the state of the first turtlebot.
+    ```xml
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher_0" output="screen">
+        <param name="publish_frequency" type="double" value="50.0" />
+    </node>
+    ```
+- Run the node [**spawn_model**](https://wiki.ros.org/gazebo) to spawn the first turtlebot.
+    ```xml
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf_0"
+        args="$(arg init_pose) -urdf -model $(arg robot_name) -param robot_description"/>
+    ```
+```mermaid
+flowchart
+    subgraph g1[two_tb_exploration]
+        s11[[Initialize parameters]] -->
+        s12([Node: map_node]) -->
+        s13[Launch: spawn_robots] -->
+        s14[Launch: slam_online_synch] -->
+        s15[Launch: multi_robot_map_merge] -->
+        s16([Node: rviz]) -->
+        s17[Launch: modified_move_base] -->
+        s18[Node: tb3_0_FE\nNode: tb3_1_FE]
+    end
+    s13 --- g2
+    subgraph g2[spawn_robots]
+        s21[[Initialize parameters]] -->
+        s22[Launch: empty_world] -->
+        s23[Launch: tb3_0\nLaunch: tb3_1]
+    end
+    s23 --- g6
+    subgraph g6[tb3_0 / tb3_1]
+        s61[[Initialize parameters]] -->
+        s62([Node: robot_state_publisher]) -->
+        s63([Node: spawn_model])
+    end
+    s14 --- g3
+    subgraph g3[slam_online_sync]
+        s31[[Initialize parameters]] -->
+        s32([Node: sync_slam_toolbox_node])
+    end
+    s15 --- g4
+    subgraph g4[multi_robot_map_merge]
+        s41[[Initialize parameters]] -->
+        s42{{Create two namespace groups}} -->
+        s43([Node: map_merge])
+    end
+    s17 --- g5
+    subgraph g5[modified_move_base]
+        s51[[Initialize parameters]] -->
+        s52([Node: move_base])
+    end
+```
+**Figure 1:** The `two_tb_exploration` launch file flowchart.
 
 ## NODE FILES
 
@@ -162,11 +370,11 @@ classDiagram
     }
 ```
 
-**Figure 1:** The `nav_msgs/OccupancyGrid` message structure.
+**Figure 2:** The `nav_msgs/OccupancyGrid` message structure.
 
 ![map_expanding](img/map_expanding.png)
 
-**Figure 2:** The map expansion process.
+**Figure 3:** The map expansion process.
 
 Pseudo code for the `map_node`:
 ```
