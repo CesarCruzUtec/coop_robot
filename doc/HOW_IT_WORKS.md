@@ -322,59 +322,9 @@ flowchart
 
 The `map_node` is a node from the `multi_robot_exploration` package that is used to read the robots local SLAM map and create a larger map to be used for the `map_merge` node.
 
-```mermaid
-classDiagram
-    direction LR
-    OccupancyGrid <|-- Header
-    OccupancyGrid <|-- MapMetaData
-    Header <|-- time
-    MapMetaData <|-- Pose
-    MapMetaData <|-- time
-    Pose <|-- Quaternion
-    Pose <|-- Point
-
-    OccupancyGrid : Header header
-    OccupancyGrid : MapMetaData info
-    OccupancyGrid : int8[] data
-    class Header{
-      string frame_id
-      int32 seq
-      time stamp
-    }
-    class MapMetaData{
-      time map_load_time
-      Pose origin
-      float32 resolution
-      uint32 width
-      uint32 height
-    }
-    class time{
-      int32 nsecs
-      int32 secs
-    }
-    class Pose{
-        Quaternion orientation
-        Point position
-    }
-    class Quaternion{
-        float64 w
-        float64 x
-        float64 y
-        float64 z
-    }
-    class Point{
-        float64 w
-        float64 x
-        float64 y
-        float64 z
-    }
-```
-
-**Figure 2:** The `nav_msgs/OccupancyGrid` message structure.
-
 ![map_expanding](img/map_expanding.png)
 
-**Figure 3:** The map expansion process.
+**Figure 2:** The map expansion process.
 
 Pseudo code for the `map_node`:
 ```
@@ -423,50 +373,6 @@ main:
 
 The `tb3_0_FE` is a node from the `multi_robot_exploration` package that is used to explore the environment and find the frontiers for the first turtlebot.
 
-```mermaid
-classDiagram
-    direction LR
-    class FrontExpl{
-        NodeHandle nh
-        Publisher FE0_map_pub
-        Subscriber map_0_sub
-        ServiceServer start_srv
-        Buffer tfBuffer
-        OccupancyGrid FE0_map
-        Pose robot_pose_
-        Point point
-        TransformStamped transformS
-        MoveBaseGoal goal
-        string map0_frame = "tb3_0/map"
-        string body0_frame = "tb3_0/base_footprint"
-        vector<signed int> edge0_vec, neighbor0_index, neighbor0_value
-        vector<unsigned int> centroids0, temp_group0
-        vector<double> centroid0_Xpts, centroid0_Ypts, dist0_arr, prev_cent_0x, prev_cent_0y
-        int group0_c=0, prev_group0_c=0
-        int centroid0=0, centroid0_index=0
-        int map_width=0, map_height=0
-        int mark_edge=0, edge_index=0
-        int move_to_pt=0
-        double smallest = 9999999.0, dist0=0.0
-        bool unique_flag=true
-        bool start0_flag=false
-
-        FrontExpl()
-        bool startCallback()
-        void mapCallback()
-        void neighborhood()
-        void find_all_edges()
-        bool check_edges()
-        void find_regions()
-        void find_transform()
-        void centroid_index_to_point()
-        void find_closest_centroid()
-        void edge_index_to_point()
-        void main_loop()
-    }
-```
-**Figure 3:** The `tb3_0_FE` class structure.
-
 Pseudo code for the `tb3_0_FE`:
 
 Class **FrontExpl**
@@ -501,7 +407,7 @@ Class **FrontExpl**
         9. If there are not any centroids, *centroids0_Xpts* and *centroids0_Ypts* are empty, go to the closest frontier point
             1. Clear both *centroids0_Xpts* and *centroids0_Ypts*
             2. Clear the *dist0_arr* vector
-            3. Given the edge vector, convert them to points with the **edge_index_to_point** function
+            3. Given the edge vector, convert them to points with the **edge_index_to_point** function  
         10. Of the centroids, find the closest one to the robot with the **find_closest_centroid** function
         11. Add the current centroid to the *prev_cent_0x* and *prev_cent_0y* vectors
         12. Determine the move_base goal with a frame of "tb3_0/map" and a position of the current centroid
