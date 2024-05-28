@@ -246,8 +246,8 @@ class ControlTrajectory:
 
 if __name__ == "__main__":
     rospy.init_node("controltra", disable_signals=True)
-    kp = [0.8, 0.8, 0.8]
-    ki = [5e-3, 5e-3, 7e-3]
+    kp = [1, 1, 1.5]
+    ki = [0, 0, 0]
     kd = [0.0, 0.0, 0.0]
 
     traj_x = np.array([-2.0, -4.0, -4.0])
