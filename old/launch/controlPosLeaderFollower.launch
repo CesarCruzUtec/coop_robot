@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+
+<launch>
+    <arg name="x" default="-2.0" />
+    <arg name="y" default="2.0" />
+    <arg name="t" default="45.0" />
+    <arg name="d" default="2.0" />
+
+    <arg name="kang" default="2.0 0.0 0.0" />
+    <arg name="klin" default="1.0 0.0 0.0" />
+
+    <arg name="v" default="False" />
+
+
+    <node name="leaderControlPos" pkg="coop_robot" type="leaderControlPos.py"
+        args="-x $(arg x) -y $(arg y) -t $(arg t) -d $(arg d) -kang $(arg kang) -klin $(arg klin)" />
+
+    <node name="followerControlPos" pkg="coop_robot" type="followerControlPos.py"
+        args="-x $(arg x) -y $(arg y) -t $(arg t) -d $(arg d) -kang $(arg kang) -klin $(arg klin)" />
+
+</launch>

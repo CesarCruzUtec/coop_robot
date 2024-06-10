@@ -13,10 +13,11 @@ MAX_ANGLE_VEL = 1.82
 MAX_LIN_VEL = 0.26
 
 
-class ControlPosition:
-    def __init__(self, reference, control):  # reference = [x, y]
+class ControlTrajectory:
+    def __init__(self, trajectory, control):  # reference = [x, y]
         self.dim = "ang"
-        self.reference = reference
+        self.trajectory: list = trajectory
+        self.reference = self.trajectory.pop(0)
         self.control = control
 
         self.refAng = None
@@ -38,11 +39,6 @@ class ControlPosition:
         self.pos = np.array([t, x, y, theta])
 
     def angControl(self):
-        # if self.refAng is None:
-        #     y = self.reference[1] - self.pos[2]
-        #     x = self.reference[0] - self.pos[1]
-        #     self.refAng = np.arctan2(y, x)
-
         kp, ki, kd = self.control[0]
 
         err = [self.reference[0] - self.pos[1], self.reference[1] - self.pos[2]]
@@ -77,9 +73,13 @@ class ControlPosition:
         ap = akp * self.err_ang
 
         if np.abs(self.err_lin) < 0.01:
-            lp = 0.0
             ap = 0.0
+            lp = 0.0
+
             self.dim = "end"
+            if len(self.trajectory) > 0:
+                self.reference = self.trajectory.pop(0)
+                self.dim = "ang"
 
         self.vel.angular.z = np.clip(ap, -MAX_ANGLE_VEL, MAX_ANGLE_VEL)
         self.vel.linear.x = np.clip(lp, -MAX_LIN_VEL, MAX_LIN_VEL)
@@ -130,8 +130,14 @@ class ControlPosition:
                     self.angControl()
                 elif self.dim == "lin":
                     self.linControl()
+                elif self.dim == "end":
+                    self.vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
+                    pub.publish(self.vel)
+                    print("End of trajectory")
+                    break
 
                 self.printStatus()
+
 
                 rate.sleep()
         except rospy.exceptions.ROSInterruptException:
@@ -142,9 +148,11 @@ class ControlPosition:
 
 if __name__ == "__main__":
     os.system("clear")
-    rospy.init_node("newcontrolpos")
+    rospy.init_node("newcontroltra")
     kang = [2, 0.0, 0.0]
     klin = [1, 0.0, 0.0]
 
-    cp = ControlPosition([3, 2], [kang, klin])
-    cp.run()
+    trajectory = [[-2.0, -1.0], [-1.0, 2.0], [1.0, 3.0], [0.0, 0.0]]
+
+    ct = ControlTrajectory(trajectory, [kang, klin])
+    ct.run()

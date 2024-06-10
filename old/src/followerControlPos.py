@@ -4,6 +4,7 @@ import rospy
 import numpy as np
 import tf.transformations
 import os
+import argparse
 
 from std_msgs.msg import String
 from nav_msgs.msg import Odometry
@@ -13,12 +14,33 @@ MAX_ANGLE_VEL = 1.82
 MAX_LIN_VEL = 0.26
 
 
-class ControlTrajectory:
-    def __init__(self, trajectory, control):  # reference = [x, y]
+class ControlPosition:
+    def __init__(self):  # reference = [x, y]
+        parser = argparse.ArgumentParser(description="Control Position")
+
+        parser.add_argument("-x", type=float, default=-2.0, help="x reference")
+        parser.add_argument("-y", type=float, default=2.0, help="y reference")
+        parser.add_argument("-t", type=float, default=45.0, help="theta reference")
+        parser.add_argument("-d", type=float, default=2.0, help="distance reference")
+
+        parser.add_argument(
+            "-kang", type=float, nargs=3, default=[2, 0.0, 0.0], help="angular control"
+        )
+        parser.add_argument(
+            "-klin", type=float, nargs=3, default=[1, 0.0, 0.0], help="linear control"
+        )
+
+        parser.add_argument(
+            "-v", "--verbose", action="store_true", help="increase output verbosity"
+        )
+
+        args = rospy.myargv()
+        self.args = parser.parse_args(args[1:])
+        self.args.t = np.deg2rad(self.args.t)
+
         self.dim = "ang"
-        self.trajectory: list = trajectory
-        self.reference = self.trajectory.pop(0)
-        self.control = control
+        # self.reference = [self.args.x, self.args.y, self.args.t]
+        self.control = [self.args.kang, self.args.klin]
 
         self.refAng = None
         self.reachControl = None
@@ -26,6 +48,22 @@ class ControlTrajectory:
         self.err_ang = 0.0
         self.err_lin = 0.0
         self.msg = ""
+
+    def calculateReference(self):
+        leaderRef = [self.args.x, self.args.y, self.args.t]
+        distance = self.args.d
+
+        self.reference = [
+            leaderRef[0] - distance * np.cos(leaderRef[2]),
+            leaderRef[1] - distance * np.sin(leaderRef[2]),
+            leaderRef[2],
+        ]
+
+        print(
+            "Reference: {0:>6.4f} m, {1:>6.4f} m | {2:>6.4f} rad".format(
+                *self.reference
+            )
+        )
 
     def callback(self, data):
         t = rospy.get_time()
@@ -38,11 +76,14 @@ class ControlTrajectory:
         theta = euler[2]
         self.pos = np.array([t, x, y, theta])
 
-    def angControl(self):
+    def angControl(self, last=False):
         kp, ki, kd = self.control[0]
 
         err = [self.reference[0] - self.pos[1], self.reference[1] - self.pos[2]]
-        self.refAng = np.arctan2(err[1], err[0])
+        if not last:
+            self.refAng = np.arctan2(err[1], err[0])
+        else:
+            self.refAng = self.reference[2]
         self.err_ang = self.refAng - self.pos[3]
         self.err_lin = np.linalg.norm(err)
         self.err = err
@@ -55,7 +96,7 @@ class ControlTrajectory:
         p = kp * self.err_ang
         if np.abs(self.err_ang) < 0.01:  # 0.01 rad = 0.57 deg
             p = 0.0
-            self.dim = "lin"
+            self.dim = "lin" if not last else "end"
 
         # self.vel.linear.x = 0.0
         self.vel.angular.z = np.clip(p, -MAX_ANGLE_VEL, MAX_ANGLE_VEL)
@@ -73,20 +114,14 @@ class ControlTrajectory:
         ap = akp * self.err_ang
 
         if np.abs(self.err_lin) < 0.01:
-            ap = 0.0
             lp = 0.0
-
-            self.dim = "end"
-            if len(self.trajectory) > 0:
-                self.reference = self.trajectory.pop(0)
-                self.dim = "ang"
+            ap = 0.0
+            self.dim = "lastang"
 
         self.vel.angular.z = np.clip(ap, -MAX_ANGLE_VEL, MAX_ANGLE_VEL)
         self.vel.linear.x = np.clip(lp, -MAX_LIN_VEL, MAX_LIN_VEL)
 
     def printStatus(self):
-        os.system("clear")
-
         data = [
             self.pos[0],  # time
             self.reference[0],  # reference x
@@ -104,25 +139,34 @@ class ControlTrajectory:
         ]
         self.msg = ",".join([str(x) for x in data])
 
-        print("Time: {0:>6.4f} s".format(data[0]))
-        print("Reference: {0:>6.4f} m, {1:>6.4f} m | {2:>6.4f} rad".format(*data[1:4]))
-        print("Position: {0:>6.4f} m, {1:>6.4f} m | {2:>6.4f} rad".format(*data[4:7]))
-        print("Error: {0:>6.4f} m, {1:>6.4f} m | {2:>6.4f} rad".format(*data[7:10]))
-        print("Control: {0:>6.4f} m/s, {1:>6.4f} rad/s".format(data[10], data[11]))
+        if self.args.verbose:
+            os.system("clear")
+            print("Time: {0:>6.4f} s".format(data[0]))
+            print(
+                "Reference: {0:>6.4f} m, {1:>6.4f} m | {2:>6.4f} rad".format(*data[1:4])
+            )
+            print(
+                "Position: {0:>6.4f} m, {1:>6.4f} m | {2:>6.4f} rad".format(*data[4:7])
+            )
+            print("Error: {0:>6.4f} m, {1:>6.4f} m | {2:>6.4f} rad".format(*data[7:10]))
+            print("Control: {0:>6.4f} m/s, {1:>6.4f} rad/s".format(data[10], data[11]))
 
     def run(self):
-        rospy.Subscriber("/odom", Odometry, self.callback)
+        rospy.Subscriber("/tb3_1/odom", Odometry, self.callback)
 
-        pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
-        dat = rospy.Publisher("/data", String, queue_size=10)
+        pub = rospy.Publisher("/tb3_1/cmd_vel", Twist, queue_size=10)
+        dat = rospy.Publisher("/tb3_1/data", String, queue_size=10)
 
         rate = rospy.Rate(10)
         rate.sleep()
 
         self.vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
 
+        self.calculateReference()
+        rate.sleep()
+
         try:
-            while not rospy.is_shutdown():
+            while not rospy.is_shutdown() and self.dim != "end":
                 pub.publish(self.vel)
                 dat.publish(self.msg)
 
@@ -130,15 +174,15 @@ class ControlTrajectory:
                     self.angControl()
                 elif self.dim == "lin":
                     self.linControl()
-                elif self.dim == "end":
-                    self.vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
-                    pub.publish(self.vel)
-                    print("End of trajectory")
-                    break
+                elif self.dim == "lastang":
+                    self.angControl(last=True)
 
                 self.printStatus()
 
                 rate.sleep()
+
+            self.vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
+            pub.publish(self.vel)
         except rospy.exceptions.ROSInterruptException:
             self.vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
             pub.publish(self.vel)
@@ -147,11 +191,7 @@ class ControlTrajectory:
 
 if __name__ == "__main__":
     os.system("clear")
-    rospy.init_node("newcontroltra")
-    kang = [2, 0.0, 0.0]
-    klin = [1, 0.0, 0.0]
+    rospy.init_node("followerControlPos")
 
-    trajectory = [[-2.0, -1.0], [-1.0, 2.0], [1.0, 3.0], [0.0, 0.0]]
-
-    ct = ControlTrajectory(trajectory, [kang, klin])
-    ct.run()
+    cp = ControlPosition()
+    cp.run()
