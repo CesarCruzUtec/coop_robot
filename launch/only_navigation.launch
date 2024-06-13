@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <rosparam command="load" file="$(find coop_robot)/config/coop_navigation.yaml" />
+
+    <node pkg="coop_robot" type="leader.py" name="leader" />
+    <node pkg="coop_robot" type="follower.py" name="follower" />
+    <node pkg="coop_robot" type="odom.py" name="odom" output="screen" />
+
+</launch>
