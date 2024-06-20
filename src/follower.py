@@ -11,48 +11,49 @@ class follower(Controller):
         super(follower, self).__init__("tb3_1")
 
     def follow(self, reference, distance):
-        leaderRef = reference
+        if len(reference) == 2:
+            trajectory = rospy.get_param("/intermediate_points")
+            prev = trajectory[-1]
+            angle = np.arctan2(reference[1] - prev[1], reference[0] - prev[0])
+            reference.append(angle)
+
         newReference = [
-            leaderRef[0] - distance * np.cos(leaderRef[2]),
-            leaderRef[1] - distance * np.sin(leaderRef[2]),
-            leaderRef[2],
+            reference[0] - distance * np.cos(reference[2]),
+            reference[1] - distance * np.sin(reference[2]),
+            reference[2],
         ]
 
         return newReference
 
     def plan_trajectory(self):
         initial_pos = rospy.get_param("/initial_position")
-        xi, yi, ti = list(initial_pos.values())
         final_pos = rospy.get_param("/goal_position")
-        xf, yf, tf = list(final_pos.values())
         distance = rospy.get_param("/distance")
 
-        self.trajectory = [
-            self.follow([xi, yi, ti], distance),
-            [xi, yi],
-            [1, 2],
-            [2.5, 1],
-            [2, -1],
-            self.follow([xf, yf, tf], distance),
-        ]
+        trajectory = rospy.get_param("/intermediate_points")
+        trajectory.insert(0, initial_pos)
+        trajectory.insert(0, self.follow(initial_pos, distance))
+        trajectory.append(self.follow(final_pos, distance))
+
+        self.trajectory = trajectory
 
     def run(self):
         self.plan_trajectory()
         self.rate.sleep()
         
+        # Move to the first point and positionate
         current_dest = self.trajectory.pop(0)
         self.move_to(*current_dest, first=True)
-        rospy.set_param(f"/{self.ns}_1step", True)
+        rospy.set_param(f"/{self.ns}/1step", True)
 
-        while not rospy.get_param("/tb3_0_1step"):
+        while not rospy.get_param(f"/{self.other}/1step"):
             self.rate.sleep()
-            pass
 
         while not rospy.is_shutdown() and self.trajectory:
             current_dest = self.trajectory.pop(0)
             self.move_to(*current_dest)
         
-        rospy.set_param(f"/{self.ns}_status", "end")
+        rospy.set_param(f"/{self.ns}/status", "end")
 
 
 if __name__ == "__main__":
