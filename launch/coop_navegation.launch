@@ -24,6 +24,23 @@
         <arg name="second_tb3_y_pos" value="$(arg second_tb3_y_pos)" />
     </include>
 
+    <!-- Open slam for each robot in their ns -->
+    <include file="$(find multi_robot_exploration)/launch/slam_online_synch.launch">
+        <arg name="ns" value="$(arg first_tb3)" />
+    </include>
+
+    <include file="$(find multi_robot_exploration)/launch/slam_online_synch.launch">
+        <arg name="ns" value="$(arg second_tb3)" />
+    </include>
+
+    <!-- Run the map expansion node -->
+    <node pkg="multi_robot_exploration" type="map_node" name="multi_robot_exploration_map_node" />
+
+    <!-- Merge the two robot maps -->
+    <include file="$(find multi_robot_exploration)/launch/multi_robot_map_merge.launch">
+        <arg name="known_initial_pos" value="$(arg known_initial_pos)" />
+    </include>
+
     <!-- Launch the navigation node -->
     <!-- <include file="$(find coop_robot)/launch/only_navigation.launch" /> -->
 
