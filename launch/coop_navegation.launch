@@ -9,11 +9,11 @@
 
     <!--Initial
     positions of the robots -->
-    <arg name="first_tb3_x_pos" default="-3.0" />
+    <arg name="first_tb3_x_pos" default="-7.0" />
     <arg name="first_tb3_y_pos" default=" -1.0" />
 
-    <arg name="second_tb3_x_pos" default=" -2.0" />
-    <arg name="second_tb3_y_pos" default=" -2.0" />
+    <arg name="second_tb3_x_pos" default=" 7.0" />
+    <arg name="second_tb3_y_pos" default=" -1.0" />
 
     <!-- Open two tb in gazebo and give spawn positions -->
     <include file="$(find coop_robot)/launch/spawn_robots.launch">
@@ -40,6 +40,10 @@
     <include file="$(find multi_robot_exploration)/launch/multi_robot_map_merge.launch">
         <arg name="known_initial_pos" value="$(arg known_initial_pos)" />
     </include>
+
+    <!-- Open rviz for two robots -->
+    <node pkg="rviz" type="rviz" name="rviz"
+        args="-d $(find coop_robot)/config/rviz.rviz" />
 
     <!-- Launch the navigation node -->
     <!-- <include file="$(find coop_robot)/launch/only_navigation.launch" /> -->
