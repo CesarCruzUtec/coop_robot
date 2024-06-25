@@ -6,4 +6,6 @@
     <node pkg="coop_robot" type="follower.py" name="follower" />
     <node pkg="coop_robot" type="odom.py" name="odom" output="screen" />
 
+    <node name="rosbag_record" pkg="rosbag" type="record" args="-O $(find coop_robot)/data/coop_nav_2.bag /tb3_0/coop_data /tb3_1/coop_data"/>
+    
 </launch>

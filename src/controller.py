@@ -12,7 +12,7 @@ MAX_ANG_VEL = 1.82
 MAX_LIN_VEL = 0.26
 
 ANG_TOL = 0.02 # 1.14°
-LIN_TOL = 0.05 # 5%
+LIN_TOL = 0.02 # 5%
 DIS_TOL = 0.02 # 2%
 
 
@@ -40,6 +40,8 @@ class Controller:
         # Set the initial velocity to 0 and a no velocity message
         self.vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
         self.no_vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
+        self.current = [0, 0, 0]
+        self.otherPos = [0, 0, 0]
 
     def get_param(self):
         ang_param = rospy.get_param("/ang_param")
@@ -116,9 +118,9 @@ class Controller:
             else:
                 lp = self.lkp * min(err_lin, oerr_lin)
                 if x == ox and y == oy:
-                    if self.distance < self.distanceD * (1 - DIS_TOL):
+                    if derr > self.distanceD * DIS_TOL:
                         lp = 0 if self.ns == "tb3_1" else self.lkp * derr
-                    elif self.distance > self.distanceD * (1 + DIS_TOL):
+                    elif derr < -self.distanceD * DIS_TOL:
                         lp = 0 if self.ns == "tb3_0" else self.lkp * -derr
                 else:
                     if self.ns == "tb3_0" and self.constant > 1:
@@ -145,6 +147,7 @@ class Controller:
     def rotate_to(self, theta):
         finish = False
         rospy.set_param(f"/{self.ns}/status", "rotating")
+        rospy.set_param(f"/{self.ns}/objective_angle", float(theta))
         while not finish:
             err_ang = theta - self.current[2]
 

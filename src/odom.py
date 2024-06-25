@@ -6,6 +6,7 @@ import os
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
+from coop_robot.msg import coop_data
 from tf.transformations import euler_from_quaternion as efq
 
 
@@ -20,6 +21,8 @@ class tb_odom:
             "tb3_1": 0,
         }
         self.distance = rospy.get_param("/distance")
+        self.cd_0 = rospy.Publisher("/tb3_0/coop_data", coop_data, queue_size=10)
+        self.cd_1 = rospy.Publisher("/tb3_1/coop_data", coop_data, queue_size=10)
 
         rospy.init_node("tb_odom")
 
@@ -30,7 +33,6 @@ class tb_odom:
         rate.sleep()
         rospy.Subscriber("/tb3_1/odom", Odometry, self.callback, "tb3_1")
         rospy.Subscriber("/tb3_1/cmd_vel", Twist, self.velcallback, "tb3_1")
-
         rate.sleep()
 
         pmax_error = 0
@@ -80,10 +82,35 @@ class tb_odom:
         y = data.pose.pose.position.y
         quat = data.pose.pose.orientation
         euler = efq([quat.x, quat.y, quat.z, quat.w])
-        t = euler[2]
-        t = np.rad2deg(t)
+        tr = euler[2]
+        t = np.rad2deg(tr)
+
+        v = data.twist.twist.linear.x
+        w = data.twist.twist.angular.z
 
         self.pos[ns] = [x, y, t]
+        
+        msg = coop_data()
+        msg.X = x
+        msg.Y = y
+        msg.T = tr
+        msg.V = v
+        msg.W = w
+        msg.Xd = 0
+        msg.Yd = 0
+        msg.Td = 0
+
+        if rospy.has_param(f"/{ns}/objective"):
+            obj = rospy.get_param(f"/{ns}/objective")
+            msg.Xd = obj[0]
+            msg.Yd = obj[1]
+            if rospy.has_param(f"/{ns}/objective_angle"):
+                msg.Td = rospy.get_param(f"/{ns}/objective_angle")
+            
+        if ns == "tb3_0":
+            self.cd_0.publish(msg)
+        else:
+            self.cd_1.publish(msg)
 
     def velcallback(self, data, ns):
         x = data.linear.x
