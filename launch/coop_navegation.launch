@@ -9,11 +9,11 @@
 
     <!--Initial
     positions of the robots -->
-    <arg name="first_tb3_x_pos" default="-7.0" />
+    <arg name="first_tb3_x_pos" default="-1.0" />
     <arg name="first_tb3_y_pos" default=" -1.0" />
 
-    <arg name="second_tb3_x_pos" default=" 7.0" />
-    <arg name="second_tb3_y_pos" default=" -1.0" />
+    <arg name="second_tb3_x_pos" default=" -2.0" />
+    <arg name="second_tb3_y_pos" default=" -2.0" />
 
     <!-- Open two tb in gazebo and give spawn positions -->
     <include file="$(find coop_robot)/launch/spawn_robots.launch">
@@ -25,19 +25,19 @@
     </include>
 
     <!-- Open slam for each robot in their ns -->
-    <include file="$(find multi_robot_exploration)/launch/slam_online_synch.launch">
+<!--     <include file="$(find multi_robot_exploration)/launch/slam_online_synch.launch">
         <arg name="ns" value="$(arg first_tb3)" />
-    </include>
+    </include> -->
 
-    <include file="$(find multi_robot_exploration)/launch/slam_online_synch.launch">
+<!--     <include file="$(find multi_robot_exploration)/launch/slam_online_synch.launch">
         <arg name="ns" value="$(arg second_tb3)" />
-    </include>
+    </include> -->
 
     <!-- Run the map expansion node -->
-    <node pkg="multi_robot_exploration" type="map_node" name="multi_robot_exploration_map_node" />
+    <!-- <node pkg="multi_robot_exploration" type="map_node" name="multi_robot_exploration_map_node" /> -->
 
     <!-- Merge the two robot maps -->
-    <include file="$(find multi_robot_exploration)/launch/multi_robot_map_merge.launch">
+    <!-- <include file="$(find multi_robot_exploration)/launch/multi_robot_map_merge.launch">
         <arg name="known_initial_pos" value="$(arg known_initial_pos)" />
 
         <arg name="first_tb3_x_pos" value="$(arg first_tb3_x_pos)" />
@@ -49,11 +49,10 @@
         <arg name="second_tb3_y_pos" value="$(arg second_tb3_y_pos)" />
         <arg name="second_tb3_z_pos" default=" 0.0" />
         <arg name="second_tb3_yaw" default=" 0.0" />
-    </include>
+    </include> -->
 
     <!-- Open rviz for two robots -->
-    <node pkg="rviz" type="rviz" name="rviz"
-        args="-d $(find coop_robot)/config/rviz.rviz" />
+    <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find coop_robot)/config/rviz.rviz" /> -->
 
     <!-- Launch the navigation node -->
     <!-- <include file="$(find coop_robot)/launch/only_navigation.launch" /> -->
