@@ -1,12 +1,12 @@
-initial_position: [0.0, 0.0, deg(90)]
-goal_position: [8.0, 2.0]
+initial_position: [2.0, -0.2, deg(0)]
+goal_position: [5.0, -1.2]
 intermediate_points:
-  - [2.0, 3.0]
+  - [3.0, -1.2]
   # - [6.0, 3.0]
   # - [10.0, 2.0]
   # - [10.0,-1.0]
   # - [6.0, -2.0]
-distance: 1.5
+distance: 1
 ang_param:
   kp: 1.5
   ki: 0.0

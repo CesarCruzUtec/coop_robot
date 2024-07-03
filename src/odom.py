@@ -13,14 +13,18 @@ from tf.transformations import euler_from_quaternion as efq
 class tb_odom:
     def __init__(self):
         self.pos = {
-            "tb3_0": [0, 0, 0],
-            "tb3_1": [0, 0, 0],
+            "tb3_0": [0, 0, 0, 0, 0],
+            "tb3_1": [0, 0, 0, 0, 0],
         }
         self.vel = {
-            "tb3_0": 0,
-            "tb3_1": 0,
+            "tb3_0": [0, 0],
+            "tb3_1": [0, 0],
         }
-        self.distance = rospy.get_param("/distance")
+
+        self.distance = (
+            rospy.get_param("/distance") if rospy.has_param("/distance") else 0
+        )
+
         self.cd_0 = rospy.Publisher("/tb3_0/coop_data", coop_data, queue_size=10)
         self.cd_1 = rospy.Publisher("/tb3_1/coop_data", coop_data, queue_size=10)
 
@@ -35,6 +39,7 @@ class tb_odom:
         rospy.Subscriber("/tb3_1/cmd_vel", Twist, self.velcallback, "tb3_1")
         rate.sleep()
 
+        max_error = 0
         pmax_error = 0
 
         while not rospy.is_shutdown():
@@ -59,19 +64,25 @@ class tb_odom:
             if ped > pmax_error and tb3_0_1step and tb3_1_1step:
                 pmax_error = ped
                 max_error = ed
-                
 
             os.system("clear")
             print(f"Distance: {distance:.4f} m, {angle:.2f}°")
-            print(f"Error: {ed:.2f} cm, %: {ped:.2f}\n")
-            print(f"Leader: {self.pos['tb3_0'][2]:.2f}°, {self.vel['tb3_0']:.2f} m/s")
-            print(f"Follow: {self.pos['tb3_1'][2]:.2f}°, {self.vel['tb3_1']:.2f} m/s\n")
+            # print(f"Error: {ed:.2f} cm, %: {ped:.2f}\n")
+            # print(f"Leader: {self.pos['tb3_0'][2]:.2f}°, {self.vel['tb3_0']:.2f} m/s")
+            # print(f"Follow: {self.pos['tb3_1'][2]:.2f}°, {self.vel['tb3_1']:.2f} m/s\n")
 
-            tb3_0 = rospy.get_param("/tb3_0/status")
-            tb3_1 = rospy.get_param("/tb3_1/status")
+            print(
+                f"TB3_0: X: {self.pos['tb3_0'][0]:6.2f} m, Y: {self.pos['tb3_0'][1]:6.2f} m, T: {self.pos['tb3_0'][2]:6.2f}°, V: {self.pos['tb3_0'][3]:6.2f} m/s, W: {self.pos['tb3_0'][4]:6.2f} rad/s"
+            )
+            print(
+                f"TB3_1: X: {self.pos['tb3_1'][0]:6.2f} m, Y: {self.pos['tb3_1'][1]:6.2f} m, T: {self.pos['tb3_1'][2]:6.2f}°, V: {self.pos['tb3_1'][3]:6.2f} m/s, W: {self.pos['tb3_1'][4]:6.2f} rad/s"
+            )
 
-            if tb3_0 == "end" and tb3_1 == "end":
-                break
+            # tb3_0 = rospy.get_param("/tb3_0/status")
+            # tb3_1 = rospy.get_param("/tb3_1/status")
+
+            # if tb3_0 == "end" and tb3_1 == "end":
+            # break
 
             rate.sleep()
 
@@ -88,8 +99,8 @@ class tb_odom:
         v = data.twist.twist.linear.x
         w = data.twist.twist.angular.z
 
-        self.pos[ns] = [x, y, t]
-        
+        self.pos[ns] = [x, y, t, v, w]
+
         msg = coop_data()
         msg.X = x
         msg.Y = y
@@ -106,7 +117,7 @@ class tb_odom:
             msg.Yd = obj[1]
             if rospy.has_param(f"/{ns}/objective_angle"):
                 msg.Td = rospy.get_param(f"/{ns}/objective_angle")
-            
+
         if ns == "tb3_0":
             self.cd_0.publish(msg)
         else:
@@ -114,8 +125,9 @@ class tb_odom:
 
     def velcallback(self, data, ns):
         x = data.linear.x
+        w = data.angular.z
 
-        self.vel[ns] = x
+        self.vel[ns] = [x, w]
 
 
 if __name__ == "__main__":

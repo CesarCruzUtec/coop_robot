@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-
-<launch>
-
-    <node name="control" pkg="coop_robot" type="newControlPos.py"/>
-    <node name="plot" pkg="coop_robot" type="readPlot.py"/>
-
-</launch>
