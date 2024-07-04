@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-import argparse
 import re
-import os
 
 from nav_msgs.msg import OccupancyGrid
 
@@ -12,28 +10,12 @@ class MapExpansion:
     def __init__(self) -> None:
         self.rate = rospy.Rate(5)
 
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            "robot_namespace",
-            type=str,
-            help="Namespace of the robot",
-            default="tb3",
-        )
-        parser.add_argument(
-            "expanded_topic",
-            type=str,
-            help="Name of the expanded map topic",
-            default="new_map",
-        )
+        robot_namespace = rospy.get_param("~robot_namespace", "tb3")
+        expanded_topic = rospy.get_param("~expanded_topic", "new_map")
 
         self.maps: dict[str, OccupancyGrid] = {}
         self.pubs: dict[str, rospy.Publisher] = {}
         self.exp_maps: dict[str, OccupancyGrid] = {}
-
-        args = parser.parse_args()
-
-        robot_namespace = args.robot_namespace
-        expanded_topic = args.expanded_topic
 
         # Get all topics of of the form /tb3_*/map
         topics = rospy.get_published_topics()
