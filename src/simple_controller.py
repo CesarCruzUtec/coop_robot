@@ -18,13 +18,13 @@ MAX_LIN_VEL = 0.26
 ANG_TOL = 0.02  # 1.14°
 LIN_TOL = 0.02  # 5%
 
-KPL = 1.0
+KPL = 2.0
 KPA = 1.5
 
 
 class Robot:
-    def __init__(self) -> None:
-        self.ns: str = "tb3"
+    def __init__(self, ns: str = "tb3") -> None:
+        self.ns: str = ns
         self.pos: list[float] = [0.0, 0.0, 0.0]
         self.running: bool = False
         self.pub: rospy.Publisher = None
@@ -43,19 +43,26 @@ class Robot:
         finished = False
         while not finished:
             err = [x - self.pos[0], y - self.pos[1]]
-            ang_ref = np.arctan2(err[1], err[0])
+            # ang_ref = np.arctan2(err[1], err[0])
 
             lin_err = np.linalg.norm(err)
             ang_err = ang_ref - self.pos[2]
 
-            lin_vel = KPL * lin_err
+            if ang_err > np.pi:
+                ang_err -= 2 * np.pi
+            elif ang_err < -np.pi:
+                ang_err += 2 * np.pi
+
+            lin_vel = KPL * (np.cos(self.pos[2]) * err[0] + np.sin(self.pos[2]) * err[1])
             ang_vel = KPA * ang_err
 
-            if np.linalg.norm(err) < LIN_TOL:
+            if lin_err < LIN_TOL:
+                print("Reached destination")
                 lin_vel = 0
                 ang_vel = 0
                 finished = True
 
+            print(f"Lin err: {lin_err:.4f}, Ang err: {ang_err:.4f}")
             self.vel.linear.x = np.clip(lin_vel, -MAX_LIN_VEL, MAX_LIN_VEL)
             self.vel.angular.z = np.clip(ang_vel, -MAX_ANG_VEL, MAX_ANG_VEL)
             self.pub.publish(self.vel)
@@ -88,6 +95,11 @@ class Robot:
             self.pub.publish(self.vel)
 
             self.rate.sleep()
+        
+    def robot_stop(self):
+        self.vel.linear.x = 0
+        self.vel.angular.z = 0
+        self.pub.publish(self.vel)
 
 
 class SimpleController:
@@ -107,7 +119,7 @@ class SimpleController:
 
             topic_name: str = topic[0]
             robot_name: str = topic_name.split("/")[1]
-            self.robot[robot_name] = Robot()
+            self.robot[robot_name] = Robot(robot_name)
 
             rospy.Subscriber(topic_name, Odometry, self.callback, robot_name)
             self.robot[robot_name].pub = rospy.Publisher(
@@ -169,6 +181,9 @@ class SimpleController:
     def run(self):
         print("Running simple controller")
         rospy.spin()
+        for robot in self.robot.values():
+            robot.robot_stop()
+        print("Simple controller stopped")
 
 
 if __name__ == "__main__":

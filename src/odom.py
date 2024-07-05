@@ -3,6 +3,7 @@
 import rospy
 import numpy as np
 import os
+import re
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
@@ -10,83 +11,106 @@ from coop_robot.msg import coop_data
 from tf.transformations import euler_from_quaternion as efq
 
 
+class Robot:
+    def __init__(self, ns: str = "tb3"):
+        self.ns: str = ns
+        self.pos: np.ndarray = np.array([0.0, 0.0])
+        self.ang: float = 0.0
+        self.vel: list[float] = [0.0, 0.0]
+        self.true_vel: list[float] = [0.0, 0.0]
+        self.pub: rospy.Publisher = None
+        self.dist: float = 0.0
+        self.err: float = 0.0
+
+    def get_1step(self) -> None:
+        return rospy.get_param(f"/{self.ns}/1step", False)
+
+
 class tb_odom:
     def __init__(self):
-        self.pos = {
-            "tb3_0": [0, 0, 0, 0, 0],
-            "tb3_1": [0, 0, 0, 0, 0],
-        }
-        self.vel = {
-            "tb3_0": [0, 0],
-            "tb3_1": [0, 0],
-        }
+        self.ns: str = rospy.get_param("~ns", "tb3")
+        self.leader: str = self.ns + "_" + str(rospy.get_param("~leader", 0))
+        self.send_data: bool = rospy.get_param("~send_data", False)
+        self.distance = rospy.get_param("/distance", [0.0])
+        if isinstance(self.distance, float) or isinstance(self.distance, int):
+            self.distance = [0, self.distance]
+        else:
+            self.distance.insert(0, 0)
+        self.robot: dict[str, Robot] = {}
+        self.rate = rospy.Rate(5)
 
-        self.distance = (
-            rospy.get_param("/distance") if rospy.has_param("/distance") else 0
-        )
+    def printStatus(self, robot: Robot):
+        print(f"NS: {robot.ns}")
+        print(f"X: {robot.pos[0]:.2f} m, Y: {robot.pos[1]:.2f} m, T: {robot.ang:.2f}°")
+        print(f"V: {robot.true_vel[0]:.2f} m/s, W: {robot.true_vel[1]:.2f} rad/s")
 
-        self.cd_0 = rospy.Publisher("/tb3_0/coop_data", coop_data, queue_size=10)
-        self.cd_1 = rospy.Publisher("/tb3_1/coop_data", coop_data, queue_size=10)
+    def run(self):
+        if not self.obtainTopics():
+            return
 
-        rospy.init_node("tb_odom")
-
-        rate = rospy.Rate(10)
-
-        rospy.Subscriber("/tb3_0/odom", Odometry, self.callback, "tb3_0")
-        rospy.Subscriber("/tb3_0/cmd_vel", Twist, self.velcallback, "tb3_0")
-        rate.sleep()
-        rospy.Subscriber("/tb3_1/odom", Odometry, self.callback, "tb3_1")
-        rospy.Subscriber("/tb3_1/cmd_vel", Twist, self.velcallback, "tb3_1")
-        rate.sleep()
-
-        max_error = 0
-        pmax_error = 0
+        self.rate.sleep()
 
         while not rospy.is_shutdown():
-            tb3_0_1step = (
-                rospy.get_param("/tb3_0/1step")
-                if rospy.has_param("/tb3_0/1step")
-                else False
-            )
-            tb3_1_1step = (
-                rospy.get_param("/tb3_1/1step")
-                if rospy.has_param("/tb3_1/1step")
-                else False
-            )
-
-            d = np.array(self.pos["tb3_0"][:2]) - np.array(self.pos["tb3_1"][:2])
-            distance = np.linalg.norm(d)
-            angle = np.arctan2(d[1], d[0])
-            angle = np.rad2deg(angle)
-
-            ed = abs(distance - self.distance) * 100
-            ped = ed / self.distance
-            if ped > pmax_error and tb3_0_1step and tb3_1_1step:
-                pmax_error = ped
-                max_error = ed
-
             os.system("clear")
-            print(f"Distance: {distance:.4f} m, {angle:.2f}°")
-            # print(f"Error: {ed:.2f} cm, %: {ped:.2f}\n")
-            # print(f"Leader: {self.pos['tb3_0'][2]:.2f}°, {self.vel['tb3_0']:.2f} m/s")
-            # print(f"Follow: {self.pos['tb3_1'][2]:.2f}°, {self.vel['tb3_1']:.2f} m/s\n")
+            finished = 0
+            for robot in self.robot.values():
+                self.printStatus(robot)
 
-            print(
-                f"TB3_0: X: {self.pos['tb3_0'][0]:6.2f} m, Y: {self.pos['tb3_0'][1]:6.2f} m, T: {self.pos['tb3_0'][2]:6.2f}°, V: {self.pos['tb3_0'][3]:6.2f} m/s, W: {self.pos['tb3_0'][4]:6.2f} rad/s"
+                if not robot.get_1step():
+                    continue
+                
+                status = rospy.get_param(f"/{robot.ns}/status", "idle")
+                print(f"Status: {status}")
+                if status == "end":
+                    finished += 1
+
+                if robot.ns == self.leader:
+                    continue
+
+                dLF = self.robot[self.leader].pos - robot.pos
+                d = np.linalg.norm(dLF)
+                print(f"Distance to leader: {d:.2f} m")
+
+                ed = abs(d - robot.dist) * 100
+                if ed > robot.err:
+                    robot.err = ed
+
+            if finished == len(self.robot):
+                break
+
+            self.rate.sleep()
+
+        for robot in self.robot.values():
+            if robot.ns == self.leader:
+                continue
+            p_err = robot.err / robot.dist
+            print(f"Final error for {robot.ns}: {robot.err:.2f} cm / {p_err:.2f}%")
+
+    def obtainTopics(self) -> bool:
+        topics = rospy.get_published_topics()
+        for topic in topics:
+            if not re.match(rf"/{self.ns}_\d+/odom", topic[0]):
+                continue
+
+            topic_name: str = topic[0]
+            robot_name: str = topic_name.split("/")[1]
+            self.robot[robot_name] = Robot(robot_name)
+            self.robot[robot_name].dist = self.distance.pop(0)
+
+            rospy.Subscriber(topic_name, Odometry, self.callback, robot_name)
+            rospy.Subscriber(
+                f"/{robot_name}/cmd_vel", Twist, self.velcallback, robot_name
             )
-            print(
-                f"TB3_1: X: {self.pos['tb3_1'][0]:6.2f} m, Y: {self.pos['tb3_1'][1]:6.2f} m, T: {self.pos['tb3_1'][2]:6.2f}°, V: {self.pos['tb3_1'][3]:6.2f} m/s, W: {self.pos['tb3_1'][4]:6.2f} rad/s"
+            self.robot[robot_name].pub = rospy.Publisher(
+                f"/{robot_name}/coop_data", coop_data, queue_size=10
             )
+            print(f"Subscribed to {topic_name}")
 
-            # tb3_0 = rospy.get_param("/tb3_0/status")
-            # tb3_1 = rospy.get_param("/tb3_1/status")
+        if not self.robot:
+            print("No topics found")
+            return False
 
-            # if tb3_0 == "end" and tb3_1 == "end":
-            # break
-
-            rate.sleep()
-
-        print(f"\nMax error: {max_error:.2f} cm, %: {pmax_error:.2f}")
+        return True
 
     def callback(self, data, ns):
         x = data.pose.pose.position.x
@@ -99,7 +123,12 @@ class tb_odom:
         v = data.twist.twist.linear.x
         w = data.twist.twist.angular.z
 
-        self.pos[ns] = [x, y, t, v, w]
+        self.robot[ns].pos = np.array([x, y])
+        self.robot[ns].ang = t
+        self.robot[ns].true_vel = [v, w]
+
+        if not self.send_data:
+            return
 
         msg = coop_data()
         msg.X = x
@@ -118,17 +147,17 @@ class tb_odom:
             if rospy.has_param(f"/{ns}/objective_angle"):
                 msg.Td = rospy.get_param(f"/{ns}/objective_angle")
 
-        if ns == "tb3_0":
-            self.cd_0.publish(msg)
-        else:
-            self.cd_1.publish(msg)
+        self.robot[ns].pub.publish(msg)
 
     def velcallback(self, data, ns):
         x = data.linear.x
         w = data.angular.z
 
-        self.vel[ns] = [x, w]
+        self.robot[ns].vel = [x, w]
 
 
 if __name__ == "__main__":
+    rospy.init_node("tb_odom")
+
     tbo = tb_odom()
+    tbo.run()

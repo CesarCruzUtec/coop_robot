@@ -34,7 +34,7 @@
     </include>
 
     <!-- Run the map expansion node -->
-    <node pkg="multi_robot_exploration" type="map_node" name="multi_robot_exploration_map_node" />
+    <!-- <node pkg="multi_robot_exploration" type="map_node" name="multi_robot_exploration_map_node" /> -->
 
     <!-- Merge the two robot maps -->
     <include file="$(find multi_robot_exploration)/launch/multi_robot_map_merge.launch">
