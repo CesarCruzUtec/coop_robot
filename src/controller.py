@@ -106,9 +106,15 @@ class Controller:
             else:
                 oerr = [ox - self.otherPos[0], oy - self.otherPos[1]]
 
-            ang_ref = np.arctan2(err[1], err[0])
+            # ang_ref = np.arctan2(err[1], err[0])
 
             err_ang = ang_ref - self.current[2]
+
+            if err_ang > np.pi:
+                err_ang -= 2 * np.pi
+            elif err_ang < -np.pi:
+                err_ang += 2 * np.pi
+                
             err_lin = np.linalg.norm(err)
             oerr_lin = np.linalg.norm(oerr)
 

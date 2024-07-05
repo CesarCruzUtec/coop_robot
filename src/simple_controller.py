@@ -18,7 +18,7 @@ MAX_LIN_VEL = 0.26
 ANG_TOL = 0.02  # 1.14°
 LIN_TOL = 0.02  # 5%
 
-KPL = 2.0
+KPL = 1.0
 KPA = 1.5
 
 
@@ -53,16 +53,15 @@ class Robot:
             elif ang_err < -np.pi:
                 ang_err += 2 * np.pi
 
-            lin_vel = KPL * (np.cos(self.pos[2]) * err[0] + np.sin(self.pos[2]) * err[1])
+            # lin_vel = KPL * (np.cos(self.pos[2]) * err[0] + np.sin(self.pos[2]) * err[1])
+            lin_vel = KPL * lin_err
             ang_vel = KPA * ang_err
 
             if lin_err < LIN_TOL:
-                print("Reached destination")
                 lin_vel = 0
                 ang_vel = 0
                 finished = True
 
-            print(f"Lin err: {lin_err:.4f}, Ang err: {ang_err:.4f}")
             self.vel.linear.x = np.clip(lin_vel, -MAX_LIN_VEL, MAX_LIN_VEL)
             self.vel.angular.z = np.clip(ang_vel, -MAX_ANG_VEL, MAX_ANG_VEL)
             self.pub.publish(self.vel)
