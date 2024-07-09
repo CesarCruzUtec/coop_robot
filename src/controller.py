@@ -58,6 +58,9 @@ class Controller:
         euler = efq([quat.x, quat.y, quat.z, quat.w])
         theta = euler[2]
 
+        if ns == "tb3_1":
+            y = y - 1
+
         if ns == self.ns:
             self.current = [x, y, theta]
         else:
@@ -90,6 +93,7 @@ class Controller:
 
         finish = False
         rospy.set_param(f"/{self.ns}/status", "moving")
+        prev_lin_err = np.inf
         while not finish:
             otherStatus = rospy.get_param(f"/{self.other}/status")
             ox, oy = rospy.get_param(f"/{self.other}/objective")
@@ -136,11 +140,12 @@ class Controller:
 
             ap = self.akp * err_ang
 
-            if np.abs(err_lin) < LIN_TOL:
+            if err_lin < LIN_TOL or err_lin - prev_lin_err > 1e-3:
                 lp = 0.0
                 ap = 0.0
                 finish = True
 
+            prev_lin_err = err_lin
             self.vel.linear.x = np.clip(lp, -MAX_LIN_VEL, MAX_LIN_VEL)
             self.vel.angular.z = np.clip(ap, -MAX_ANG_VEL, MAX_ANG_VEL)
             self.pub.publish(self.vel)
@@ -168,6 +173,7 @@ class Controller:
                 ap = 0.0
                 finish = True
 
+            self.vel.linear.x = 0
             self.vel.angular.z = np.clip(ap, -MAX_ANG_VEL, MAX_ANG_VEL)
             self.pub.publish(self.vel)
 

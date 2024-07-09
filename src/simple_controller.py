@@ -31,6 +31,13 @@ class Robot:
         self.vel: Twist = Twist(Vector3(0, 0, 0), Vector3(0, 0, 0))
         self.rate: rospy.Rate = rospy.Rate(10)
 
+    def fix_angle(self, ang: float) -> float:
+        if ang > np.pi:
+            ang -= 2 * np.pi
+        elif ang < -np.pi:
+            ang += 2 * np.pi
+        return ang
+
     def move_to(self, x: float, y: float, t: float):
         if x is None and y is None:
             self.rotate_to(t)
@@ -41,27 +48,27 @@ class Robot:
         self.rotate_to(ang_ref)
 
         finished = False
+        prev_lin_err = np.inf
         while not finished:
             err = [x - self.pos[0], y - self.pos[1]]
-            # ang_ref = np.arctan2(err[1], err[0])
+            # ang_refl = np.arctan2(err[1], err[0])
 
             lin_err = np.linalg.norm(err)
-            ang_err = ang_ref - self.pos[2]
+            # ang_errl = self.fix_angle(ang_refl - self.pos[2])
+            ang_err = self.fix_angle(ang_ref - self.pos[2])
 
-            if ang_err > np.pi:
-                ang_err -= 2 * np.pi
-            elif ang_err < -np.pi:
-                ang_err += 2 * np.pi
-
-            # lin_vel = KPL * (np.cos(self.pos[2]) * err[0] + np.sin(self.pos[2]) * err[1])
+            # temp = np.cos(self.pos[2]) * err[0] + np.sin(self.pos[2]) * err[1]
+            # lin_vel = KPL * (temp)
             lin_vel = KPL * lin_err
             ang_vel = KPA * ang_err
 
-            if lin_err < LIN_TOL:
+            if lin_err < LIN_TOL or lin_err - prev_lin_err > 1e-3:
                 lin_vel = 0
                 ang_vel = 0
                 finished = True
 
+            # print(f"Lin: {lin_err:.6f}, Prev: {prev_lin_err:.6f}, Ang: {ang_err:.4f}")
+            prev_lin_err = lin_err
             self.vel.linear.x = np.clip(lin_vel, -MAX_LIN_VEL, MAX_LIN_VEL)
             self.vel.angular.z = np.clip(ang_vel, -MAX_ANG_VEL, MAX_ANG_VEL)
             self.pub.publish(self.vel)

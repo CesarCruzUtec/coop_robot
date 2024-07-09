@@ -40,7 +40,7 @@ class tb_odom:
         self.rate = rospy.Rate(5)
 
     def printStatus(self, robot: Robot):
-        print(f"NS: {robot.ns}")
+        print(f"NS: {robot.ns}, Time: {rospy.get_time():.2f} s")
         print(f"X: {robot.pos[0]:.2f} m, Y: {robot.pos[1]:.2f} m, T: {robot.ang:.2f}°")
         print(f"V: {robot.true_vel[0]:.2f} m/s, W: {robot.true_vel[1]:.2f} rad/s")
 
