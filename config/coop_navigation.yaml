@@ -15,3 +15,4 @@ lin_param:
   kp: 1.0
   ki: 0.0
   kd: 0.0
+offset: [0, 0, 0]

@@ -42,7 +42,7 @@ class tb_odom:
     def printStatus(self, robot: Robot):
         print(f"NS: {robot.ns}, Time: {rospy.get_time():.2f} s")
         print(f"X: {robot.pos[0]:.2f} m, Y: {robot.pos[1]:.2f} m, T: {robot.ang:.2f}°")
-        print(f"V: {robot.true_vel[0]:.2f} m/s, W: {robot.true_vel[1]:.2f} rad/s")
+        print(f"V: {robot.vel[0]:.2f} m/s, W: {robot.vel[1]:.2f} rad/s")
 
     def run(self):
         if not self.obtainTopics():
@@ -56,7 +56,8 @@ class tb_odom:
             for robot in self.robot.values():
                 self.printStatus(robot)
 
-                if not robot.get_1step():
+                if any([not x.get_1step() for x in self.robot.values()]):
+                    print("Not finished first step")
                     continue
                 
                 status = rospy.get_param(f"/{robot.ns}/status", "idle")
@@ -69,9 +70,9 @@ class tb_odom:
 
                 dLF = self.robot[self.leader].pos - robot.pos
                 d = np.linalg.norm(dLF)
-                print(f"Distance to leader: {d:.2f} m")
+                print(f"\nDistance to leader: {d:.2f} m")
 
-                ed = abs(d - robot.dist)
+                ed = abs(d - robot.dist)*100
                 if ed > robot.err:
                     robot.err = ed
 
@@ -83,8 +84,8 @@ class tb_odom:
         for robot in self.robot.values():
             if robot.ns == self.leader:
                 continue
-            p_err = 100*robot.err / robot.dist
-            print(f"Final error for {robot.ns}: {robot.err:.2f} cm / {p_err:.2f}%")
+            p_err = robot.err / robot.dist
+            print(f"\nFinal error for {robot.ns}: {robot.err:.2f} cm / {p_err:.2f}%")
 
     def obtainTopics(self) -> bool:
         topics = rospy.get_published_topics()

@@ -114,11 +114,12 @@ class Controller:
         d2 = np.linalg.norm(err2)
         vel = self.lkp * min(d1, d2)
         if x == ox and y == oy:
-            derr = 1 - self.distance / self.distanceD
-            if derr > DIS_TOL and self.ns == "tb3_1":
-                return vel * (1 - derr)
-            if derr < -DIS_TOL and self.ns == "tb3_0":
-                return vel * (1 + derr)
+            # derr = 1 - self.distance / self.distanceD
+            derr = self.distance - self.distanceD
+            if derr > DIS_TOL and self.ns == "tb3_0":
+                vel *= 0.25
+            if derr < -DIS_TOL and self.ns == "tb3_1":
+                vel *= 0.25
             return vel
 
         if self.ns == "tb3_1":
