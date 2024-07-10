@@ -11,9 +11,9 @@ from geometry_msgs.msg import Twist, Vector3
 MAX_ANG_VEL = 1.82
 MAX_LIN_VEL = 0.26
 
-ANG_TOL = 0.02 # 1.14°
-LIN_TOL = 0.02 # 5%
-DIS_TOL = 0.02 # 2%
+ANG_TOL = 0.02  # 1.14°
+LIN_TOL = 0.02  # 5%
+DIS_TOL = 0.02  # 2%
 
 
 class Controller:
@@ -42,6 +42,7 @@ class Controller:
         self.no_vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
         self.current = [0, 0, 0]
         self.otherPos = [0, 0, 0]
+        self.offset = [0, 0, 0]
 
     def get_param(self):
         ang_param = rospy.get_param("/ang_param")
@@ -51,6 +52,8 @@ class Controller:
         self.akp = ang_param["kp"]
         self.lkp = lin_param["kp"]
 
+        self.offset = rospy.get_param("/offset")
+
     def callback(self, msg, ns):
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
@@ -59,7 +62,9 @@ class Controller:
         theta = euler[2]
 
         if ns == "tb3_1":
-            y = y - 1
+            x += self.offset[0]
+            y += self.offset[1]
+            theta += self.offset[2]
 
         if ns == self.ns:
             self.current = [x, y, theta]
@@ -74,15 +79,62 @@ class Controller:
             leader, follower = self.current, self.otherPos
         else:
             leader, follower = self.otherPos, self.current
-        
+
         vFL = np.array(leader[:2]) - np.array(follower[:2])
         dFL = np.linalg.norm(vFL)
-        aFL = np.arctan2(vFL[1], vFL[0])
+        # aFL = np.arctan2(vFL[1], vFL[0])
 
         self.distance = dFL
-        self.angle = aFL
-        self.constant = np.cos(aFL - leader[2]) / np.cos(aFL - follower[2])
-        rospy.loginfo(f"Constant: {self.constant:.2f}")
+        # self.angle = aFL
+        # self.constant = np.cos(aFL - leader[2]) / np.cos(aFL - follower[2])
+        # rospy.loginfo(f"Constant: {self.constant:.2f}")
+
+    def fix_angle(self, ang: float) -> float:
+        if ang > np.pi:
+            ang -= 2 * np.pi
+        elif ang < -np.pi:
+            ang += 2 * np.pi
+        return ang
+
+    def getLinearVel(
+        self,
+        first: bool,
+        oStatus: str,
+        x: float,
+        y: float,
+        ox: float,
+        oy: float,
+    ) -> float:
+        err1 = [x - self.current[0], y - self.current[1]]
+        d1 = np.linalg.norm(err1)
+        if first or oStatus == "end":
+            return self.lkp * d1
+
+        err2 = [ox - self.otherPos[0], oy - self.otherPos[1]]
+        d2 = np.linalg.norm(err2)
+        vel = self.lkp * min(d1, d2)
+        if x == ox and y == oy:
+            derr = 1 - self.distance / self.distanceD
+            if derr > DIS_TOL and self.ns == "tb3_1":
+                return vel * (1 - derr)
+            if derr < -DIS_TOL and self.ns == "tb3_0":
+                return vel * (1 + derr)
+            return vel
+
+        if self.ns == "tb3_1":
+            d1, d2 = d2, d1
+        err3 = [x - ox, y - oy]
+        d3 = np.linalg.norm(err3) - d1
+        ang = abs(np.pi - abs(self.current[2] - self.otherPos[2]))
+
+        k = (d3 - d2 * np.cos(ang)) / (d2 - d3 * np.cos(ang))
+        rospy.loginfo(f"K = {k:.2f}")
+        
+        if k < 1 and self.ns == "tb3_1":
+            return vel * k
+        if k > 1 and self.ns == "tb3_0":
+            return vel / k
+        return vel
 
     def move_to(self, x, y, theta=None, first=False):
         rospy.set_param(f"/{self.ns}/objective", [float(x), float(y)])
@@ -96,48 +148,42 @@ class Controller:
         prev_lin_err = np.inf
         while not finish:
             otherStatus = rospy.get_param(f"/{self.other}/status")
-            ox, oy = rospy.get_param(f"/{self.other}/objective")
 
             if otherStatus == "rotating" and not first:
                 self.pub.publish(self.no_vel)
                 self.rate.sleep()
                 continue
 
+            ox, oy = rospy.get_param(f"/{self.other}/objective")
             err = [x - self.current[0], y - self.current[1]]
 
-            if first or otherStatus == "end":
-                oerr = [np.inf, np.inf]
-            else:
-                oerr = [ox - self.otherPos[0], oy - self.otherPos[1]]
+            # if first or otherStatus == "end":
+            #     oerr = [np.inf, np.inf]
+            # else:
+            #     oerr = [ox - self.otherPos[0], oy - self.otherPos[1]]
 
-            # ang_ref = np.arctan2(err[1], err[0])
-
-            err_ang = ang_ref - self.current[2]
-
-            if err_ang > np.pi:
-                err_ang -= 2 * np.pi
-            elif err_ang < -np.pi:
-                err_ang += 2 * np.pi
-                
             err_lin = np.linalg.norm(err)
-            oerr_lin = np.linalg.norm(oerr)
+            # oerr_lin = np.linalg.norm(oerr)
 
-            derr = self.distanceD - self.distance
-            if first or otherStatus == "end":
-                lp = self.lkp * err_lin
-            else:
-                lp = self.lkp * min(err_lin, oerr_lin)
-                if x == ox and y == oy:
-                    if derr > self.distanceD * DIS_TOL:
-                        lp = 0 if self.ns == "tb3_1" else self.lkp * derr
-                    elif derr < -self.distanceD * DIS_TOL:
-                        lp = 0 if self.ns == "tb3_0" else self.lkp * -derr
-                else:
-                    if self.ns == "tb3_0" and self.constant > 1:
-                        lp = self.otherVel / self.constant
-                    elif self.ns == "tb3_1" and self.constant < 1:
-                        lp = self.otherVel * self.constant
+            # derr = self.distanceD - self.distance
+            # if first or otherStatus == "end":
+            #     lp = self.lkp * err_lin
+            # else:
+            #     lp = self.lkp * min(err_lin, oerr_lin)
+            #     if x == ox and y == oy:
+            #         if derr > DIS_TOL:
+            #             lp = 0 if self.ns == "tb3_1" else self.lkp * derr
+            #         elif derr < -DIS_TOL:
+            #             lp = 0 if self.ns == "tb3_0" else self.lkp * -derr
+            #     else:
+            #         if self.ns == "tb3_0" and self.constant > 1:
+            #             lp = self.otherVel / self.constant
+            #         elif self.ns == "tb3_1" and self.constant < 1:
+            #             lp = self.otherVel * self.constant
 
+            lp = self.getLinearVel(first, otherStatus, x, y, ox, oy)
+
+            err_ang = self.fix_angle(ang_ref - self.current[2])
             ap = self.akp * err_ang
 
             if err_lin < LIN_TOL or err_lin - prev_lin_err > 1e-3:

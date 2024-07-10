@@ -38,7 +38,7 @@ class Robot:
             ang += 2 * np.pi
         return ang
 
-    def move_to(self, x: float, y: float, t: float):
+    def move_to(self, x: float|None, y: float|None, t: float|None):
         if x is None and y is None:
             self.rotate_to(t)
             return

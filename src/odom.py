@@ -71,7 +71,7 @@ class tb_odom:
                 d = np.linalg.norm(dLF)
                 print(f"Distance to leader: {d:.2f} m")
 
-                ed = abs(d - robot.dist) * 100
+                ed = abs(d - robot.dist)
                 if ed > robot.err:
                     robot.err = ed
 
@@ -83,7 +83,7 @@ class tb_odom:
         for robot in self.robot.values():
             if robot.ns == self.leader:
                 continue
-            p_err = robot.err / robot.dist
+            p_err = 100*robot.err / robot.dist
             print(f"Final error for {robot.ns}: {robot.err:.2f} cm / {p_err:.2f}%")
 
     def obtainTopics(self) -> bool:
@@ -95,7 +95,6 @@ class tb_odom:
             topic_name: str = topic[0]
             robot_name: str = topic_name.split("/")[1]
             self.robot[robot_name] = Robot(robot_name)
-            self.robot[robot_name].dist = self.distance.pop(0)
 
             rospy.Subscriber(topic_name, Odometry, self.callback, robot_name)
             rospy.Subscriber(
@@ -109,6 +108,10 @@ class tb_odom:
         if not self.robot:
             print("No topics found")
             return False
+        
+        self.robot = dict(sorted(self.robot.items()))
+        for robot in self.robot.values():
+            robot.dist = self.distance.pop(0)
 
         return True
 
