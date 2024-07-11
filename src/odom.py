@@ -57,7 +57,6 @@ class tb_odom:
                 self.printStatus(robot)
 
                 if any([not x.get_1step() for x in self.robot.values()]):
-                    print("Not finished first step")
                     continue
                 
                 status = rospy.get_param(f"/{robot.ns}/status", "idle")
