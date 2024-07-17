@@ -42,7 +42,6 @@ class Controller:
         self.no_vel = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
         self.current = [0, 0, 0]
         self.otherPos = [0, 0, 0]
-        self.offset = [0, 0, 0]
 
     def get_param(self):
         ang_param = rospy.get_param("/ang_param")
@@ -52,7 +51,7 @@ class Controller:
         self.akp = ang_param["kp"]
         self.lkp = lin_param["kp"]
 
-        self.offset = rospy.get_param("/offset")
+        self.offset = rospy.get_param("/offset", [0.0, 1.0, 0.0])
 
     def callback(self, msg, ns):
         x = msg.pose.pose.position.x

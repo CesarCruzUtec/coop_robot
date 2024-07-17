@@ -1,9 +1,9 @@
-initial_position: [2.0, 0.0, deg(0)]
-goal_position: [6.0, -1]
+initial_position: [1.5, 0.0, deg(0)]
+goal_position: [6.5, -0.3]
 intermediate_points:
-  - [4.0, -1.0]
-  # - [6.0, 3.0]
-  # - [10.0, 2.0]
+  - [2.0, 0.0]
+  - [3.0, 0.75]
+  - [4.75, 0.75]
   # - [10.0,-1.0]
   # - [6.0, -2.0]
 distance: 1
@@ -15,4 +15,4 @@ lin_param:
   kp: 1.0
   ki: 0.0
   kd: 0.0
-offset: [0, 0, 0]
+offset: [0, 1, 0]

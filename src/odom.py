@@ -30,7 +30,8 @@ class tb_odom:
     def __init__(self):
         self.ns: str = rospy.get_param("~ns", "tb3")
         self.leader: str = self.ns + "_" + str(rospy.get_param("~leader", 0))
-        self.send_data: bool = rospy.get_param("~send_data", False)
+        self.send_data: bool = rospy.get_param("~send_data", True)
+        self.offset: list[float] = rospy.get_param("/offset", [0.0, 0.0, 0.0])
         self.distance = rospy.get_param("/distance", [0.0])
         if isinstance(self.distance, float) or isinstance(self.distance, int):
             self.distance = [0, self.distance]
@@ -126,6 +127,11 @@ class tb_odom:
         v = data.twist.twist.linear.x
         w = data.twist.twist.angular.z
 
+        if ns == "tb3_1":
+            x += self.offset[0]
+            y += self.offset[1]
+            t += self.offset[2]
+
         self.robot[ns].pos = np.array([x, y])
         self.robot[ns].ang = t
         self.robot[ns].true_vel = [v, w]
@@ -150,7 +156,10 @@ class tb_odom:
             if rospy.has_param(f"/{ns}/objective_angle"):
                 msg.Td = rospy.get_param(f"/{ns}/objective_angle")
 
-        self.robot[ns].pub.publish(msg)
+        try:
+            self.robot[ns].pub.publish(msg)
+        except rospy.ROSException:
+            print("Published to closed topic")
 
     def velcallback(self, data, ns):
         x = data.linear.x
