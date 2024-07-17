@@ -29,6 +29,8 @@ class Robot:
         self.running: bool = False
         self.pub: rospy.Publisher = None
         self.vel: Twist = Twist(Vector3(0, 0, 0), Vector3(0, 0, 0))
+        self.startTime: float = 0.0
+        self.overTime: bool = False
         self.rate: rospy.Rate = rospy.Rate(10)
 
     def fix_angle(self, ang: float) -> float:
@@ -39,12 +41,12 @@ class Robot:
         return ang
 
     def move_to(self, x: float, y: float, t: float):
+        self.overTime = False
+        self.startTime = rospy.get_time()
         if x is None and y is None:
-            print("No destination given, so rotating")
             self.rotate_to(t)
             return
 
-        print("Moving to", x, y)
         err = [x - self.pos[0], y - self.pos[1]]
         ang_ref = np.arctan2(err[1], err[0])
         self.rotate_to(ang_ref)
@@ -77,15 +79,18 @@ class Robot:
 
             self.rate.sleep()
 
-        print("Finished moving to", x, y, "now rotating to", t)
-        self.rotate_to(t)
+            if rospy.get_time() - self.startTime > 30:
+                print("Over time")
+                self.overTime = True
+                break
+        
+        if not self.overTime:
+            self.rotate_to(t)
 
     def rotate_to(self, ang: float):
         if ang is None:
-            print("No angle given, so stopping")
             return
 
-        print("Rotating to", ang)
         finished = False
         while not finished:
             ang_err = ang - self.pos[2]
@@ -101,14 +106,16 @@ class Robot:
                 ang_vel = 0
                 finished = True
 
-            print(f"Ang: {ang_err:.4f}, Vel: {ang_vel:.4f}")
             self.vel.linear.x = 0
             self.vel.angular.z = np.clip(ang_vel, -MAX_ANG_VEL, MAX_ANG_VEL)
             self.pub.publish(self.vel)
 
             self.rate.sleep()
-        
-        print("Finished rotating to", ang)
+
+            if rospy.get_time() - self.startTime > 30:
+                print("Over time")
+                self.overTime = True
+                break
         
     def robot_stop(self):
         self.vel.linear.x = 0
@@ -120,10 +127,10 @@ class SimpleController:
     def __init__(self) -> None:
         self.ns = rospy.get_param("~ns", "tb3")
         self.robot: dict[str, Robot] = {}
-
-        self.srv = rospy.Service("/sendGoal", sendGoal, self.srv_call)
-
         self.obtainTopics()
+
+        self.srv = rospy.Service("sendGoal", sendGoal, self.srv_call)
+
 
     def obtainTopics(self) -> bool:
         topics = rospy.get_published_topics()
@@ -181,7 +188,7 @@ class SimpleController:
         self.robot[ns].move_to(*dest)
         self.robot[ns].running = False
 
-        return True
+        return not self.robot[ns].overTime
 
     def callback(self, msg, robot_name):
         x = msg.pose.pose.position.x
