@@ -33,6 +33,9 @@ class Robot:
         self.overTime: bool = False
         self.rate: rospy.Rate = rospy.Rate(10)
 
+        rospy.set_param(f"/{self.ns}/objective", [0.0, 0.0])
+        rospy.set_param(f"/{self.ns}/objective_angle", 0.0)
+
     def fix_angle(self, ang: float) -> float:
         if ang > np.pi:
             ang -= 2 * np.pi
@@ -53,6 +56,7 @@ class Robot:
 
         finished = False
         prev_lin_err = np.inf
+        rospy.set_param(f"/{self.ns}/objective", [x, y])
         while not finished:
             err = [x - self.pos[0], y - self.pos[1]]
             # ang_refl = np.arctan2(err[1], err[0])
@@ -92,6 +96,7 @@ class Robot:
             return
 
         finished = False
+        rospy.set_param(f"/{self.ns}/objective_angle", float(ang))
         while not finished:
             ang_err = ang - self.pos[2]
 

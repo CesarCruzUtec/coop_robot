@@ -30,7 +30,7 @@ class tb_odom:
     def __init__(self):
         self.ns: str = rospy.get_param("~ns", "tb3")
         self.leader: str = self.ns + "_" + str(rospy.get_param("~leader", 0))
-        self.send_data: bool = rospy.get_param("~send_data", True)
+        self.send_data: bool = rospy.get_param("/send_data", False)
         self.offset: list[float] = rospy.get_param("/offset", [0.0, 0.0, 0.0])
         self.distance = rospy.get_param("/distance", [0.0])
         if isinstance(self.distance, float) or isinstance(self.distance, int):
@@ -54,6 +54,7 @@ class tb_odom:
         while not rospy.is_shutdown():
             os.system("clear")
             finished = 0
+            print(f"Sending data? {self.send_data}")
             for robot in self.robot.values():
                 self.printStatus(robot)
 
@@ -80,6 +81,9 @@ class tb_odom:
                 break
 
             self.rate.sleep()
+        
+        if finished == 0:
+            return
 
         for robot in self.robot.values():
             if robot.ns == self.leader:
@@ -136,6 +140,7 @@ class tb_odom:
         self.robot[ns].ang = t
         self.robot[ns].true_vel = [v, w]
 
+        self.send_data = rospy.get_param("/send_data", False)
         if not self.send_data:
             return
 

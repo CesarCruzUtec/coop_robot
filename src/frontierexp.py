@@ -3,6 +3,8 @@
 import rospy
 import os
 import tf2_ros
+import time
+import numpy as np
 
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Pose, TransformStamped
@@ -12,7 +14,7 @@ from coop_robot.srv import sendGoal
 
 class FrontExpl:
     def __init__(self):
-        self.robot_name: str = rospy.get_param("~robot_name", "")
+        self.robot_name: str = rospy.get_param("~robot_name", "tb3_0")
         self.map_topic: str = f"{self.robot_name}/map"
         self.frame_topic: str = f"{self.robot_name}/base_footprint"
         print(f"Map topic: {self.map_topic}")
@@ -36,7 +38,8 @@ class FrontExpl:
         if self.getMap:
             self.FEmap = msg
             self.FEmap.data = list(self.FEmap.data)
-            self.FEmap.header.frame_id = "map"
+            # self.FEmap.header.frame_id = "map"
+            self.FEmap.header.frame_id = self.map_topic
 
     def run(self):
         print("Running")
@@ -256,7 +259,7 @@ class FrontExpl:
             # Start getting the map again
             self.getMap = True
 
-            input("Press Enter to continue...")
+            # input("Press Enter to continue...")
 
 
 if __name__ == "__main__":
